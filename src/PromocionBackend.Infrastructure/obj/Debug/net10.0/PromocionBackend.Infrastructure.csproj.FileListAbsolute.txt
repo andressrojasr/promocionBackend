@@ -1,0 +1,17 @@
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\bin\Debug\net10.0\PromocionBackend.Infrastructure.deps.json
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\bin\Debug\net10.0\PromocionBackend.Infrastructure.dll
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\bin\Debug\net10.0\PromocionBackend.Infrastructure.pdb
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\bin\Debug\net10.0\PromocionBackend.Application.dll
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\bin\Debug\net10.0\PromocionBackend.Domain.dll
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\bin\Debug\net10.0\PromocionBackend.Application.pdb
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\bin\Debug\net10.0\PromocionBackend.Domain.pdb
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\PromocionBackend.Infrastructure.csproj.AssemblyReference.cache
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\PromocionBackend.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\PromocionBackend.Infrastructure.AssemblyInfoInputs.cache
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\PromocionBackend.Infrastructure.AssemblyInfo.cs
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\PromocionBackend.Infrastructure.csproj.CoreCompileInputs.cache
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\Promocio.8C4AB341.Up2Date
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\PromocionBackend.Infrastructure.dll
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\refint\PromocionBackend.Infrastructure.dll
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\PromocionBackend.Infrastructure.pdb
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\ref\PromocionBackend.Infrastructure.dll
