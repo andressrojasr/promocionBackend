@@ -33,7 +33,6 @@ public class SessionService(
 
         var utcNow = DateTime.UtcNow;
         var user = await db.Users
-            .Include(u => u.Snapshot)
             .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
 
         if (user is null)
@@ -59,11 +58,6 @@ public class SessionService(
         user.LastLoginAt = utcNow;
         user.UpdatedAt = utcNow;
 
-        if (user.Role == Roles.Teacher)
-        {
-            await RefreshTeacherSnapshotAsync(user, identification, externalAccessToken, utcNow, cancellationToken);
-        }
-
         await db.SaveChangesAsync(cancellationToken);
 
         var accessToken = jwtIssuer.IssueToken(user);
@@ -74,40 +68,12 @@ public class SessionService(
     public async Task<SessionUserDto> GetMeAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await db.Users
-            .Include(u => u.Snapshot)
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
             ?? throw AppException.NotFound("Usuario no encontrado.");
 
         return BuildUserDto(user);
     }
 
-    private async Task RefreshTeacherSnapshotAsync(User user, string identification, string externalAccessToken, DateTime utcNow, CancellationToken cancellationToken)
-    {
-        var details = await hrApi.GetTeacherDetailsAsync(identification, externalAccessToken, cancellationToken);
-
-        user.TeacherId = details.TeacherId;
-        user.FullName = details.FullName;
-
-        var positionStart = TeacherProfileMapper.ParseDate(details.CurrentPositionStartDate)
-            ?? throw AppException.UpstreamUnavailable("La hoja de vida recibida no tiene una fecha de inicio de cargo válida.");
-
-        var snapshotJson = JsonSerializer.Serialize(details, AppJson.Options);
-
-        if (user.Snapshot is null)
-        {
-            user.Snapshot = new TeacherSnapshot
-            {
-                Id = Guid.NewGuid(),
-                UserId = user.Id
-            };
-            db.TeacherSnapshots.Add(user.Snapshot);
-        }
-
-        user.Snapshot.CurrentPosition = details.CurrentPosition;
-        user.Snapshot.CurrentPositionStartDate = positionStart;
-        user.Snapshot.SnapshotJson = snapshotJson;
-        user.Snapshot.CapturedAt = utcNow;
-    }
 
     private string ResolveInitialRole(string email) =>
         roleSeeds.Value.Emails.TryGetValue(email, out var seededRole) && Roles.IsValid(seededRole)
@@ -121,7 +87,7 @@ public class SessionService(
         user.Role,
         user.TeacherId,
         user.Identification,
-        user.Snapshot?.CurrentPosition);
+        null);
 
     /// <summary>Nombre legible derivado del correo, usado para usuarios sin hoja de vida (personal administrativo).</summary>
     private static string DisplayNameFromEmail(string email)

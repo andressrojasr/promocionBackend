@@ -115,17 +115,15 @@ public class ProcessService(IAppDbContext db)
             return null;
         }
 
-        var currentPosition = await db.TeacherSnapshots
-            .Where(s => s.UserId == currentUser.UserId)
-            .Select(s => s.CurrentPosition)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        var appliedProcessIds = await db.Applications
+        var applications = await db.Applications
             .Where(a => a.TeacherUserId == currentUser.UserId)
-            .Select(a => a.ProcessId)
+            .Select(a => new { a.ProcessId, a.CurrentPosition })
             .ToListAsync(cancellationToken);
 
-        return new TeacherContext(currentPosition, [.. appliedProcessIds]);
+        // Usa la posición de la postulación más reciente
+        var currentPosition = applications.FirstOrDefault()?.CurrentPosition;
+
+        return new TeacherContext(currentPosition, [.. applications.Select(a => a.ProcessId)]);
     }
 
     private static ProcessSummaryDto ToSummary(PromotionProcess process, int applicationsCount, DateTime utcNow, TeacherContext? teacherContext)

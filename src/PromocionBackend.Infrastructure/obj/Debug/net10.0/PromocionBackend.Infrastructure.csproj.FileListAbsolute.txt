@@ -15,3 +15,4 @@ C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend
 C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\refint\PromocionBackend.Infrastructure.dll
 C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\PromocionBackend.Infrastructure.pdb
 C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\ref\PromocionBackend.Infrastructure.dll
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Infrastructure\obj\Debug\net10.0\PromocionBackend.Infrastructure.sourcelink.json

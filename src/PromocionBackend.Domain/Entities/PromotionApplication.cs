@@ -16,8 +16,12 @@ public class PromotionApplication
     public string ToPosition { get; set; } = string.Empty;
     public string Status { get; set; } = ApplicationStatuses.Submitted;
     public DateTime SubmittedAt { get; set; }
-    public string SnapshotJson { get; set; } = string.Empty;
-    public string EligibilityJson { get; set; } = string.Empty;
+
+    /// <summary>Perfil del docente al momento de postular (mínimo necesario para auditoría).</summary>
+    public string TeacherId { get; set; } = string.Empty;
+    public string TeacherName { get; set; } = string.Empty;
+    public string CurrentPosition { get; set; } = string.Empty;
+    public decimal? ScorePct { get; set; }
 
     /// <summary>Momento del rechazo de la Comisión de Promoción; inicia el plazo de apelación.</summary>
     public DateTime? CpDecisionAt { get; set; }

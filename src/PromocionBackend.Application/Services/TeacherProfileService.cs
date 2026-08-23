@@ -4,6 +4,7 @@ using PromocionBackend.Application.Abstractions;
 using PromocionBackend.Application.Abstractions.External;
 using PromocionBackend.Application.Common;
 using PromocionBackend.Application.DTOs.Teachers;
+using PromocionBackend.Application.Mapping;
 using PromocionBackend.Domain.Services;
 
 namespace PromocionBackend.Application.Services;
@@ -12,25 +13,34 @@ namespace PromocionBackend.Application.Services;
 /// Expone la hoja de vida del docente almacenada en su snapshot, para la página
 /// de perfil y la selección de documentos al postular.
 /// </summary>
-public class TeacherProfileService(IAppDbContext db)
+public class TeacherProfileService(
+    IAppDbContext db,
+    IHrApiClient hrApi)
 {
-    public async Task<TeacherProfileDto> GetMyProfileAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<TeacherProfileDto> GetMyProfileAsync(Guid userId, string externalAccessToken, CancellationToken cancellationToken = default)
     {
-        var snapshot = await db.TeacherSnapshots
-            .FirstOrDefaultAsync(s => s.UserId == userId, cancellationToken)
-            ?? throw AppException.NotFound("No se encontró la hoja de vida del docente. Inicie sesión nuevamente para sincronizarla.");
+        var user = await db.Users
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
+            ?? throw AppException.NotFound("Usuario no encontrado.");
 
-        var details = JsonSerializer.Deserialize<HrTeacherDetails>(snapshot.SnapshotJson, AppJson.Options)
-            ?? throw AppException.UpstreamUnavailable("No fue posible leer la hoja de vida almacenada.");
+        var identification = user.Identification
+            ?? throw AppException.Unauthorized("El usuario no tiene identificación registrada.");
 
-        var nextPosition = PositionLadder.GetNextPosition(snapshot.CurrentPosition);
+        var details = await hrApi.GetTeacherDetailsAsync(identification, externalAccessToken, cancellationToken);
+
+        var positionStart = TeacherProfileMapper.ParseDate(details.CurrentPositionStartDate)
+            ?? throw AppException.UpstreamUnavailable("La hoja de vida recibida no tiene una fecha de inicio de cargo válida.");
+
+        var nextPosition = PositionLadder.GetNextPosition(details.CurrentPosition);
+        var utcNow = DateTime.UtcNow;
 
         return new TeacherProfileDto(
-            snapshot.CapturedAt,
-            snapshot.CurrentPosition,
-            PositionLadder.Label(snapshot.CurrentPosition),
+            utcNow,
+            details.CurrentPosition,
+            PositionLadder.Label(details.CurrentPosition),
             nextPosition,
             nextPosition is null ? null : PositionLadder.Label(nextPosition),
             details);
     }
+
 }

@@ -5,6 +5,7 @@ using PromocionBackend.Application.Abstractions.External;
 using PromocionBackend.Application.Common;
 using PromocionBackend.Application.DTOs.Applications;
 using PromocionBackend.Application.DTOs.Eligibility;
+using PromocionBackend.Application.Mapping;
 using PromocionBackend.Domain.Constants;
 using PromocionBackend.Domain.Entities;
 using PromocionBackend.Domain.Services;
@@ -19,9 +20,10 @@ namespace PromocionBackend.Application.Services;
 public class ApplicationService(
     IAppDbContext db,
     EligibilityService eligibilityService,
-    NotificationService notificationService)
+    NotificationService notificationService,
+    IHrApiClient hrApi)
 {
-    public async Task<ApplicationDetailDto> SubmitAsync(SubmitApplicationRequest request, ICurrentUserService currentUser, CancellationToken cancellationToken = default)
+    public async Task<ApplicationDetailDto> SubmitAsync(SubmitApplicationRequest request, ICurrentUserService currentUser, string externalAccessToken, CancellationToken cancellationToken = default)
     {
         var utcNow = DateTime.UtcNow;
 
@@ -42,8 +44,8 @@ public class ApplicationService(
             throw AppException.Conflict("Ya existe una postulación suya en este proceso.");
         }
 
-        var (snapshot, details, eligibility) = await eligibilityService
-            .EvaluateInternalAsync(request.ProcessId, currentUser.UserId, cancellationToken);
+        var (details, eligibility) = await eligibilityService
+            .EvaluateInternalAsync(request.ProcessId, currentUser.UserId, externalAccessToken, cancellationToken);
 
         if (!eligibility.IsEligible)
         {
@@ -52,7 +54,11 @@ public class ApplicationService(
                 $"No cumple todos los requisitos para postular. Requisitos pendientes: {string.Join("; ", missing)}.");
         }
 
-        var items = ResolveItems(request.Items, details);
+        var requirement = await db.ProcessRequirements
+            .FirstOrDefaultAsync(r => r.ProcessId == process.Id && r.FromPosition == details.CurrentPosition, cancellationToken)
+            ?? throw AppException.NotFound("Configuración de requisitos no encontrada para esta transición.");
+
+        var items = ResolveItems(request.Items, details, requirement);
 
         var application = new PromotionApplication
         {
@@ -63,8 +69,10 @@ public class ApplicationService(
             ToPosition = eligibility.ToPosition,
             Status = ApplicationStatuses.Submitted,
             SubmittedAt = utcNow,
-            SnapshotJson = snapshot.SnapshotJson,
-            EligibilityJson = JsonSerializer.Serialize(eligibility, AppJson.Options),
+            TeacherId = details.TeacherId,
+            TeacherName = details.FullName,
+            CurrentPosition = details.CurrentPosition,
+            ScorePct = details.Score?.Percentage,
             Items = items
         };
 
@@ -78,7 +86,7 @@ public class ApplicationService(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return await GetDetailAsync(application.Id, currentUser, cancellationToken);
+        return await GetDetailAsync(application.Id, currentUser, cancellationToken: cancellationToken);
     }
 
     public async Task<IReadOnlyList<ApplicationSummaryDto>> ListAsync(
@@ -121,12 +129,16 @@ public class ApplicationService(
         return [.. summaries];
     }
 
-    public async Task<ApplicationDetailDto> GetDetailAsync(Guid applicationId, ICurrentUserService currentUser, CancellationToken cancellationToken = default)
+    public async Task<ApplicationDetailDto> GetDetailAsync(
+        Guid applicationId,
+        ICurrentUserService currentUser,
+        CancellationToken cancellationToken = default)
     {
         var utcNow = DateTime.UtcNow;
 
         var application = await db.Applications
             .Include(a => a.Process)
+            .Include(a => a.Process.Requirements)
             .Include(a => a.Teacher)
             .Include(a => a.Items)
             .Include(a => a.Reviews).ThenInclude(r => r.Reviewer)
@@ -138,13 +150,41 @@ public class ApplicationService(
 
         await ApplyAppealExpiryAsync([application], utcNow, cancellationToken);
 
-        var eligibility = string.IsNullOrWhiteSpace(application.EligibilityJson)
-            ? null
-            : JsonSerializer.Deserialize<EligibilityDto>(application.EligibilityJson, AppJson.Options);
-
         var canAppeal = currentUser.Role == Roles.Teacher &&
                         application.TeacherUserId == currentUser.UserId &&
                         ApplicationStateMachine.CanAppeal(application.Status, application.CpDecisionAt, utcNow);
+
+        // Retornar estructura básica de requisitos del proceso (sin cálculos)
+        var requirement = application.Process.Requirements
+            .FirstOrDefault(r => r.FromPosition == application.FromPosition);
+
+        EligibilityDto? eligibility = null;
+        if (requirement is not null)
+        {
+            var requirements = new List<RequirementEvaluationDto>
+            {
+                new("YEARS_IN_RANK", $"Experiencia mínima como {PositionLadder.Label(application.FromPosition)}", $"{requirement.MinYearsInPosition} años", "", false, "", requirement.MinYearsInPosition),
+                new("PUBLICATIONS", "Obras de relevancia o artículos indexados publicados", $"{requirement.MinPublications} publicaciones", "", false, "", requirement.MinPublications),
+                new("TRAINING_HOURS", $"Horas de capacitación en los últimos {requirement.TrainingWindowYears} años", $"{requirement.MinTrainingHours} horas", "", false, "", requirement.MinTrainingHours),
+            };
+
+            if (requirement.MinPedagogicalTrainingPct.HasValue)
+            {
+                requirements.Add(new("PEDAGOGICAL_HOURS", $"Actualización pedagógica ({requirement.MinPedagogicalTrainingPct}%)", $"{(int)(requirement.MinTrainingHours * requirement.MinPedagogicalTrainingPct.Value / 100)} horas", "", false, "", null));
+            }
+
+            requirements.Add(new("LANGUAGE_LEVEL", "Idioma distinto al castellano certificado", requirement.RequiredLanguageLevel ?? "B1", "", false, "", null));
+
+            eligibility = new EligibilityDto(
+                application.FromPosition,
+                application.ToPosition,
+                PositionLadder.Label(application.FromPosition),
+                PositionLadder.Label(application.ToPosition),
+                false,
+                requirements,
+                requirement.Notes,
+                null);
+        }
 
         return new ApplicationDetailDto(
             ToSummary(application, utcNow),
@@ -156,6 +196,7 @@ public class ApplicationService(
             eligibility,
             canAppeal);
     }
+
 
     public async Task<ApplicationDetailDto> ReviewAsync(
         Guid applicationId, ReviewRequest request, ICurrentUserService currentUser, CancellationToken cancellationToken = default)
@@ -212,7 +253,7 @@ public class ApplicationService(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return await GetDetailAsync(applicationId, currentUser, cancellationToken);
+        return await GetDetailAsync(applicationId, currentUser, cancellationToken: cancellationToken);
     }
 
     public async Task<ApplicationDetailDto> AppealAsync(
@@ -256,7 +297,7 @@ public class ApplicationService(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return await GetDetailAsync(applicationId, currentUser, cancellationToken);
+        return await GetDetailAsync(applicationId, currentUser, cancellationToken: cancellationToken);
     }
 
     // ---------- Auxiliares ----------
@@ -360,13 +401,14 @@ public class ApplicationService(
         PositionLadder.Label(application.ToPosition),
         ApplicationStateMachine.GetEffectiveStatus(application.Status, application.CpDecisionAt, utcNow),
         application.SubmittedAt,
-        ApplicationStateMachine.GetAppealDeadline(application.Status, application.CpDecisionAt));
+        ApplicationStateMachine.GetAppealDeadline(application.Status, application.CpDecisionAt),
+        application.ScorePct);
 
     /// <summary>
     /// Valida que cada ítem seleccionado exista en la hoja de vida congelada y
     /// resuelve su título y documento de respaldo.
     /// </summary>
-    private static List<ApplicationItem> ResolveItems(List<ApplicationItemRequest> requests, HrTeacherDetails details)
+    private static List<ApplicationItem> ResolveItems(List<ApplicationItemRequest> requests, HrTeacherDetails details, ProcessRequirement requirement)
     {
         if (requests.Count == 0)
         {
@@ -374,6 +416,7 @@ public class ApplicationService(
         }
 
         var catalog = BuildItemCatalog(details);
+        var allowedTypes = GetAllowedItemTypes(requirement);
         var items = new List<ApplicationItem>();
         var seen = new HashSet<(string, string)>();
 
@@ -382,6 +425,12 @@ public class ApplicationService(
             if (!ApplicationItemTypes.IsValid(request.ItemType))
             {
                 throw AppException.BadRequest($"Tipo de ítem inválido: '{request.ItemType}'.");
+            }
+
+            if (!allowedTypes.Contains(request.ItemType))
+            {
+                throw AppException.BadRequest(
+                    $"El tipo de ítem '{request.ItemType}' no es válido para los requisitos de este proceso.");
             }
 
             if (!seen.Add((request.ItemType, request.ExternalItemId)))
@@ -406,6 +455,35 @@ public class ApplicationService(
         }
 
         return items;
+    }
+
+    private static HashSet<string> GetAllowedItemTypes(ProcessRequirement requirement)
+    {
+        var allowed = new HashSet<string>();
+
+        if (requirement.MinPublications > 0 || requirement.MinPublicationsInOtherLanguage > 0)
+            allowed.Add(ApplicationItemTypes.Publication);
+
+        if (requirement.MinTrainingHours > 0 || requirement.MinPedagogicalTrainingPct.HasValue)
+            allowed.Add(ApplicationItemTypes.ReceivedTraining);
+
+        if (requirement.MinGivenTrainingHours.HasValue && requirement.MinGivenTrainingHours > 0)
+            allowed.Add(ApplicationItemTypes.GivenTraining);
+
+        if (requirement.MinProjectMonths.HasValue && requirement.MinProjectMonths > 0)
+            allowed.Add(ApplicationItemTypes.ResearchProject);
+
+        if (requirement.MinDoctoralTheses.HasValue && requirement.MinDoctoralTheses > 0)
+            allowed.Add(ApplicationItemTypes.DoctoralThesis);
+
+        if (!string.IsNullOrWhiteSpace(requirement.RequiredLanguageLevel))
+            allowed.Add(ApplicationItemTypes.Language);
+
+        // La experiencia siempre es un requisito implícito (mínimo años en posición)
+        if (requirement.MinYearsInPosition > 0)
+            allowed.Add(ApplicationItemTypes.Experience);
+
+        return allowed;
     }
 
     private static Dictionary<(string Type, string Id), (string Title, string? DocumentUrl)> BuildItemCatalog(HrTeacherDetails details)

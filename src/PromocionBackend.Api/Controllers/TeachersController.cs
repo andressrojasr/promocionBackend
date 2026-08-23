@@ -15,11 +15,13 @@ public class TeachersController(
     TeacherProfileService teacherProfileService,
     ICurrentUserService currentUser) : ControllerBase
 {
-    /// <summary>Hoja de vida del docente autenticado (último snapshot sincronizado desde RRHH).</summary>
+    /// <summary>Hoja de vida del docente autenticado (datos frescos de RRHH).</summary>
     [HttpGet("me/profile")]
-    public async Task<ActionResult<ApiResponse<TeacherProfileDto>>> GetMyProfile(CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<TeacherProfileDto>>> GetMyProfile(
+        [FromHeader(Name = "X-External-Token")] string externalAccessToken,
+        CancellationToken cancellationToken)
     {
-        var profile = await teacherProfileService.GetMyProfileAsync(currentUser.UserId, cancellationToken);
+        var profile = await teacherProfileService.GetMyProfileAsync(currentUser.UserId, externalAccessToken, cancellationToken);
         return Ok(ApiResponse<TeacherProfileDto>.Ok(profile));
     }
 }

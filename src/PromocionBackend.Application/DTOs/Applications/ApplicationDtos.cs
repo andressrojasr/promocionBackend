@@ -66,7 +66,8 @@ public record ApplicationSummaryDto(
     string ToLabel,
     string Status,
     DateTime SubmittedAt,
-    DateTime? AppealDeadline);
+    DateTime? AppealDeadline,
+    decimal? ScorePct);
 
 public record ApplicationDetailDto(
     ApplicationSummaryDto Summary,

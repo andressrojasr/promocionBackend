@@ -10,7 +10,6 @@ namespace PromocionBackend.Application.Abstractions;
 public interface IAppDbContext
 {
     DbSet<User> Users { get; }
-    DbSet<TeacherSnapshot> TeacherSnapshots { get; }
     DbSet<PromotionProcess> Processes { get; }
     DbSet<ProcessRequirement> ProcessRequirements { get; }
     DbSet<PromotionApplication> Applications { get; }

@@ -7,7 +7,6 @@ namespace PromocionBackend.Infrastructure.Persistence;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options), IAppDbContext
 {
     public DbSet<User> Users => Set<User>();
-    public DbSet<TeacherSnapshot> TeacherSnapshots => Set<TeacherSnapshot>();
     public DbSet<PromotionProcess> Processes => Set<PromotionProcess>();
     public DbSet<ProcessRequirement> ProcessRequirements => Set<ProcessRequirement>();
     public DbSet<PromotionApplication> Applications => Set<PromotionApplication>();

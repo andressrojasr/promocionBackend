@@ -14,7 +14,7 @@ public class UserAdminService(IAppDbContext db)
 {
     public async Task<IReadOnlyList<UserDto>> ListAsync(string? search, string? role, CancellationToken cancellationToken = default)
     {
-        var query = db.Users.Include(u => u.Snapshot).AsQueryable();
+        var query = db.Users.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -41,7 +41,6 @@ public class UserAdminService(IAppDbContext db)
         }
 
         var user = await db.Users
-            .Include(u => u.Snapshot)
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
             ?? throw AppException.NotFound("Usuario no encontrado.");
 
@@ -60,7 +59,6 @@ public class UserAdminService(IAppDbContext db)
     public async Task<UserDto> SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken = default)
     {
         var user = await db.Users
-            .Include(u => u.Snapshot)
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
             ?? throw AppException.NotFound("Usuario no encontrado.");
 
@@ -95,7 +93,7 @@ public class UserAdminService(IAppDbContext db)
         user.IsActive,
         user.Identification,
         user.TeacherId,
-        user.Snapshot?.CurrentPosition,
+        null,
         user.LastLoginAt,
         user.CreatedAt);
 }

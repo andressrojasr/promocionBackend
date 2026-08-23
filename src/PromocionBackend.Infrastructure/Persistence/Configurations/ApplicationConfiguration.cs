@@ -18,8 +18,10 @@ public class PromotionApplicationConfiguration : IEntityTypeConfiguration<Promot
         builder.Property(a => a.FromPosition).HasMaxLength(30).IsRequired();
         builder.Property(a => a.ToPosition).HasMaxLength(30).IsRequired();
         builder.Property(a => a.Status).HasMaxLength(20).IsRequired();
-        builder.Property(a => a.SnapshotJson).IsRequired();
-        builder.Property(a => a.EligibilityJson).IsRequired();
+        builder.Property(a => a.TeacherId).HasMaxLength(255).IsRequired();
+        builder.Property(a => a.TeacherName).HasMaxLength(500);
+        builder.Property(a => a.CurrentPosition).HasMaxLength(255);
+        builder.Property(a => a.ScorePct).HasPrecision(5, 2);
 
         builder.HasOne(a => a.Process)
             .WithMany(p => p.Applications)

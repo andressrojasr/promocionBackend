@@ -166,3 +166,4 @@ C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend
 C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Api\obj\Debug\net10.0\PromocionBackend.Api.pdb
 C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Api\obj\Debug\net10.0\PromocionBackend.Api.genruntimeconfig.cache
 C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Api\obj\Debug\net10.0\ref\PromocionBackend.Api.dll
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Api\obj\Debug\net10.0\PromocionBackend.Api.sourcelink.json

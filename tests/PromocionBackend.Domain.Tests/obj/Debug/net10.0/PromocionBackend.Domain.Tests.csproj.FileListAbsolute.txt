@@ -98,3 +98,4 @@ C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\tests\PromocionBacke
 C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\tests\PromocionBackend.Domain.Tests\obj\Debug\net10.0\PromocionBackend.Domain.Tests.pdb
 C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\tests\PromocionBackend.Domain.Tests\obj\Debug\net10.0\PromocionBackend.Domain.Tests.genruntimeconfig.cache
 C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\tests\PromocionBackend.Domain.Tests\obj\Debug\net10.0\ref\PromocionBackend.Domain.Tests.dll
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\tests\PromocionBackend.Domain.Tests\obj\Debug\net10.0\PromocionBackend.Domain.Tests.sourcelink.json

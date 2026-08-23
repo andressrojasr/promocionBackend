@@ -57,9 +57,12 @@ public class ProcessesController(
     /// </summary>
     [HttpGet("{id:guid}/eligibility")]
     [Authorize(Roles = Roles.Teacher)]
-    public async Task<ActionResult<ApiResponse<EligibilityDto>>> GetEligibility(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<EligibilityDto>>> GetEligibility(
+        Guid id,
+        [FromHeader(Name = "X-External-Token")] string externalAccessToken,
+        CancellationToken cancellationToken)
     {
-        var eligibility = await eligibilityService.EvaluateForProcessAsync(id, currentUser.UserId, cancellationToken);
+        var eligibility = await eligibilityService.EvaluateForProcessAsync(id, currentUser.UserId, externalAccessToken, cancellationToken);
         return Ok(ApiResponse<EligibilityDto>.Ok(eligibility));
     }
 }

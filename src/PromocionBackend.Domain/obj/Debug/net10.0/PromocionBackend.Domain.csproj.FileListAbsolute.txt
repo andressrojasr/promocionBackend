@@ -9,3 +9,4 @@ C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend
 C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Domain\obj\Debug\net10.0\refint\PromocionBackend.Domain.dll
 C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Domain\obj\Debug\net10.0\PromocionBackend.Domain.pdb
 C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Domain\obj\Debug\net10.0\ref\PromocionBackend.Domain.dll
+C:\Users\saidr\OneDrive\Escritorio\Tesis 2\promocionBackend\src\PromocionBackend.Domain\obj\Debug\net10.0\PromocionBackend.Domain.sourcelink.json

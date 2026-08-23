@@ -22,9 +22,11 @@ public class ApplicationsController(
     [HttpPost]
     [Authorize(Roles = Roles.Teacher)]
     public async Task<ActionResult<ApiResponse<ApplicationDetailDto>>> Submit(
-        [FromBody] SubmitApplicationRequest request, CancellationToken cancellationToken)
+        [FromBody] SubmitApplicationRequest request,
+        [FromHeader(Name = "X-External-Token")] string externalAccessToken,
+        CancellationToken cancellationToken)
     {
-        var application = await applicationService.SubmitAsync(request, currentUser, cancellationToken);
+        var application = await applicationService.SubmitAsync(request, currentUser, externalAccessToken, cancellationToken);
         return CreatedAtAction(
             nameof(GetDetail),
             new { id = application.Summary.Id },
@@ -41,7 +43,9 @@ public class ApplicationsController(
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<ApplicationDetailDto>>> GetDetail(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<ApplicationDetailDto>>> GetDetail(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
         var application = await applicationService.GetDetailAsync(id, currentUser, cancellationToken);
         return Ok(ApiResponse<ApplicationDetailDto>.Ok(application));
