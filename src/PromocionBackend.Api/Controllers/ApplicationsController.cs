@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PromocionBackend.Api.Services;
 using PromocionBackend.Application.Abstractions;
 using PromocionBackend.Application.Common;
 using PromocionBackend.Application.DTOs.Applications;
@@ -13,7 +14,8 @@ namespace PromocionBackend.Api.Controllers;
 [Authorize]
 public class ApplicationsController(
     ApplicationService applicationService,
-    ICurrentUserService currentUser) : ControllerBase
+    ICurrentUserService currentUser,
+    ApplicationNotificationService notificationService) : ControllerBase
 {
     /// <summary>
     /// Envía una postulación. El servidor vuelve a validar la elegibilidad y congela
@@ -27,6 +29,7 @@ public class ApplicationsController(
         CancellationToken cancellationToken)
     {
         var application = await applicationService.SubmitAsync(request, currentUser, externalAccessToken, cancellationToken);
+        await notificationService.NotifyApplicationUpdatedAsync(application.Summary);
         return CreatedAtAction(
             nameof(GetDetail),
             new { id = application.Summary.Id },
@@ -36,9 +39,16 @@ public class ApplicationsController(
     /// <summary>Listado de postulaciones según el rol: el docente ve las suyas; TH/CP/Admin todas; CA las apeladas.</summary>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<ApplicationSummaryDto>>>> List(
-        [FromQuery] string? status, [FromQuery] Guid? processId, CancellationToken cancellationToken)
+        [FromQuery] string? status, [FromQuery] Guid? processId, [FromQuery] string? teacherId, CancellationToken cancellationToken)
     {
-        var applications = await applicationService.ListAsync(currentUser, status, processId, cancellationToken);
+        // Validar estado si se proporciona
+        if (!string.IsNullOrWhiteSpace(status) && !ApplicationStatusValidator.IsValidStatus(status))
+        {
+            return BadRequest(ApiResponse<IReadOnlyList<ApplicationSummaryDto>>.Fail(
+                ApplicationStatusValidator.GetValidationErrorMessage(status)));
+        }
+
+        var applications = await applicationService.ListAsync(currentUser, status, processId, teacherId, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<ApplicationSummaryDto>>.Ok(applications));
     }
 
@@ -61,6 +71,7 @@ public class ApplicationsController(
         Guid id, [FromBody] ReviewRequest request, CancellationToken cancellationToken)
     {
         var application = await applicationService.ReviewAsync(id, request, currentUser, cancellationToken);
+        await notificationService.NotifyApplicationUpdatedAsync(application.Summary);
         return Ok(ApiResponse<ApplicationDetailDto>.Ok(application, "Revisión registrada correctamente"));
     }
 
