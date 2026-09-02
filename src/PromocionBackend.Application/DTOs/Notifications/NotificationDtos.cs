@@ -5,6 +5,6 @@ public record NotificationDto(
     string Title,
     string Message,
     bool IsRead,
-    DateTime CreatedAt);
+    string CreatedAt);
 
 public record NotificationListDto(IReadOnlyList<NotificationDto> Items, int UnreadCount);

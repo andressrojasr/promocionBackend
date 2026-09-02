@@ -167,14 +167,6 @@ public class ApplicationService(
         // Limpiar locks expirados
         await CleanExpiredLocksAsync(cancellationToken);
 
-        // Validar que no esté bloqueada por otro usuario
-        if (application.IsReviewLockedByOther(currentUser.UserId, utcNow))
-        {
-            throw AppException.Conflict(
-                $"Esta postulación está siendo revisada por {application.ReviewLocker?.FullName}. " +
-                $"Volverá a estar disponible a las {application.ReviewLockExpiresAt:yyyy-MM-dd HH:mm:ss UTC}.");
-        }
-
         // Liberar si el lock expiró
         if (application.ReviewLockedBy == currentUser.UserId &&
             application.ReviewLockExpiresAt.HasValue &&
@@ -201,7 +193,7 @@ public class ApplicationService(
 
         var canAppeal = currentUser.Role == Roles.Teacher &&
                         application.TeacherUserId == currentUser.UserId &&
-                        ApplicationStateMachine.CanAppeal(application.Status, application.CpDecisionAt, utcNow);
+                        ApplicationStateMachine.CanAppeal(application.Status, application.CpDecisionAt, null, utcNow);
 
         // Retornar estructura básica de requisitos del proceso (sin cálculos)
         var requirement = application.Process.Requirements
@@ -243,7 +235,7 @@ public class ApplicationService(
 
         return new ApplicationDetailDto(
             ToSummary(application, utcNow),
-            [.. application.Items.Select(i => new ApplicationItemDto(i.ItemType, i.ExternalItemId, i.Title, i.DocumentUrl))],
+            [.. application.Items.Select(i => new ApplicationItemDto(i.ItemType, i.ExternalItemId, i.Title, i.DocumentUrl, i.DocumentDateOriginal))],
             [.. application.Reviews
                 .OrderBy(r => r.CreatedAt)
                 .Select(r => new ReviewDto(
@@ -344,7 +336,7 @@ public class ApplicationService(
             throw AppException.Conflict("El plazo de 3 días para apelar ha vencido; la postulación quedó rechazada de forma definitiva.");
         }
 
-        if (!ApplicationStateMachine.CanAppeal(application.Status, application.CpDecisionAt, utcNow))
+        if (!ApplicationStateMachine.CanAppeal(application.Status, application.CpDecisionAt, null, utcNow))
         {
             throw AppException.Conflict("La postulación no se encuentra en un estado apelable.");
         }
@@ -388,7 +380,7 @@ public class ApplicationService(
                 continue;
             }
 
-            var effective = ApplicationStateMachine.GetEffectiveStatus(application.Status, application.CpDecisionAt, utcNow);
+            var effective = ApplicationStateMachine.GetEffectiveStatus(application.Status, application.CpDecisionAt, null, utcNow);
 
             if (effective == ApplicationStatus.Rejected)
             {
@@ -473,7 +465,7 @@ public class ApplicationService(
         var ecuadorTz = TimeZoneInfo.FindSystemTimeZoneById("America/Guayaquil");
         var submittedAtStr = FormatDateTimeToEcuadorString(application.SubmittedAt, ecuadorTz);
 
-        var appealDeadline = ApplicationStateMachine.GetAppealDeadline(application.Status, application.CpDecisionAt);
+        var appealDeadline = ApplicationStateMachine.GetAppealDeadline(application.Status, application.CpDecisionAt, null);
         var appealDeadlineStr = appealDeadline.HasValue
             ? FormatDateTimeToEcuadorString(appealDeadline.Value, ecuadorTz)
             : null;
@@ -489,7 +481,7 @@ public class ApplicationService(
             application.ToPosition,
             PositionLadder.Label(application.FromPosition),
             PositionLadder.Label(application.ToPosition),
-            ApplicationStateMachine.GetEffectiveStatus(application.Status, application.CpDecisionAt, utcNow).ToStringValue(),
+            ApplicationStateMachine.GetEffectiveStatus(application.Status, application.CpDecisionAt, null, utcNow).ToStringValue(),
             submittedAtStr,
             appealDeadlineStr,
             application.ScorePct,
@@ -543,7 +535,8 @@ public class ApplicationService(
                 ItemType = request.ItemType,
                 ExternalItemId = request.ExternalItemId,
                 Title = info.Title,
-                DocumentUrl = info.DocumentUrl
+                DocumentUrl = info.DocumentUrl,
+                DocumentDateOriginal = request.DocumentDateOriginal
             });
         }
 

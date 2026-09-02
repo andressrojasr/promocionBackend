@@ -10,6 +10,8 @@ public class ApplicationItemRequest
 
     [Required]
     public string ExternalItemId { get; set; } = string.Empty;
+
+    public DateTime? DocumentDateOriginal { get; set; }
 }
 
 public class SubmitApplicationRequest
@@ -41,7 +43,8 @@ public record ApplicationItemDto(
     string ItemType,
     string ExternalItemId,
     string Title,
-    string? DocumentUrl);
+    string? DocumentUrl,
+    DateTime? DocumentDateOriginal);
 
 public record ReviewDto(
     string Stage,
@@ -49,9 +52,9 @@ public record ReviewDto(
     string ReviewerRole,
     string Decision,
     string? Feedback,
-    DateTime CreatedAt);
+    string CreatedAt);
 
-public record AppealDto(string Justification, DateTime SubmittedAt);
+public record AppealDto(string Justification, string SubmittedAt);
 
 public record ApplicationSummaryDto(
     Guid Id,
@@ -59,15 +62,22 @@ public record ApplicationSummaryDto(
     string ProcessName,
     Guid TeacherUserId,
     string TeacherName,
-    string? TeacherId,
+    string? TeacherIdentification,
     string FromPosition,
     string ToPosition,
     string FromLabel,
     string ToLabel,
     string Status,
-    DateTime SubmittedAt,
-    DateTime? AppealDeadline,
-    decimal? ScorePct);
+    string SubmittedAt,
+    string? AppealDeadline,
+    decimal? ScorePct,
+    int? DaysToDecision,
+    string? CurrentReviewerName);
+
+public record ReviewLockInfoDto(
+    string? LockedByName,
+    DateTime? LockedAt,
+    DateTime? ExpiresAt);
 
 public record ApplicationDetailDto(
     ApplicationSummaryDto Summary,
@@ -75,4 +85,5 @@ public record ApplicationDetailDto(
     IReadOnlyList<ReviewDto> Reviews,
     AppealDto? Appeal,
     EligibilityDto? Eligibility,
-    bool CanAppeal);
+    bool CanAppeal,
+    ReviewLockInfoDto? ReviewLock);

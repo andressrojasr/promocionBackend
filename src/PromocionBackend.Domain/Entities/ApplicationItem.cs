@@ -13,6 +13,7 @@ public class ApplicationItem
     public string ExternalItemId { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? DocumentUrl { get; set; }
+    public DateTime? DocumentDateOriginal { get; set; }
 
     public PromotionApplication Application { get; set; } = null!;
 }

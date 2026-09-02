@@ -60,10 +60,17 @@ public static class ApplicationStateMachine
 
     /// <summary>
     /// Estado efectivo considerando la expiración del plazo de apelación:
-    /// un rechazo de CP sin apelación dentro del plazo se convierte en rechazo definitivo.
+    /// un rechazo de TH o CP sin apelación dentro del plazo se convierte en rechazo definitivo.
     /// </summary>
-    public static ApplicationStatus GetEffectiveStatus(ApplicationStatus status, DateTime? cpDecisionAt, DateTime utcNow)
+    public static ApplicationStatus GetEffectiveStatus(ApplicationStatus status, DateTime? cpDecisionAt, DateTime? thDecisionAt, DateTime utcNow)
     {
+        // ThRejected es final sin apelación
+        if (status == ApplicationStatus.ThRejected)
+        {
+            return ApplicationStatus.ThRejected;
+        }
+
+        // CpRejected es final después de 3 días sin apelar
         if (status == ApplicationStatus.CpRejected && IsAppealWindowExpired(cpDecisionAt, utcNow))
         {
             return ApplicationStatus.Rejected;
@@ -72,13 +79,21 @@ public static class ApplicationStateMachine
         return status;
     }
 
-    public static DateTime? GetAppealDeadline(ApplicationStatus status, DateTime? cpDecisionAt) =>
-        status == ApplicationStatus.CpRejected && cpDecisionAt is { } decidedAt
-            ? decidedAt.AddDays(AppealWindowDays)
-            : null;
+    public static DateTime? GetAppealDeadline(ApplicationStatus status, DateTime? cpDecisionAt, DateTime? thDecisionAt) =>
+        status == ApplicationStatus.CpRejected && cpDecisionAt is { } cpDecided
+            ? cpDecided.AddDays(AppealWindowDays)
+            : status == ApplicationStatus.ThRejected && thDecisionAt is { } thDecided
+                ? thDecided.AddDays(AppealWindowDays)
+                : null;
 
-    public static bool CanAppeal(ApplicationStatus status, DateTime? cpDecisionAt, DateTime utcNow) =>
-        status == ApplicationStatus.CpRejected && !IsAppealWindowExpired(cpDecisionAt, utcNow);
+    public static bool CanAppeal(ApplicationStatus status, DateTime? cpDecisionAt, DateTime? thDecisionAt, DateTime utcNow)
+    {
+        if (status == ApplicationStatus.CpRejected)
+            return !IsAppealWindowExpired(cpDecisionAt, utcNow);
+        if (status == ApplicationStatus.ThRejected)
+            return !IsAppealWindowExpired(thDecisionAt, utcNow);
+        return false;
+    }
 
     /// <summary>Valida si una transición es válida según las reglas del negocio.</summary>
     public static bool IsValidTransition(ApplicationStatus from, ApplicationStatus to, string reviewerRole)

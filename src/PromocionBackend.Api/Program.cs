@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using PromocionBackend.Api.Hubs;
 using PromocionBackend.Api.Middleware;
 using PromocionBackend.Api.Services;
 using PromocionBackend.Application;
@@ -18,6 +19,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<ApplicationNotificationService>();
 
 // Los errores de validación de modelo también usan el envelope ApiResponse.
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
@@ -69,8 +71,11 @@ builder.Services.AddCors(options =>
     options.AddPolicy("Frontend", policy =>
         policy.WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod());
+            .AllowAnyMethod()
+            .AllowCredentials());
 });
+
+builder.Services.AddSignalR();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -113,5 +118,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ApplicationsHub>("/hubs/applications");
 
 app.Run();

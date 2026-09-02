@@ -11,11 +11,15 @@ public static class ApplicationStatusService
 {
     /// <summary>Filtra aplicaciones en progreso (no finales).</summary>
     public static IQueryable<PromotionApplication> InProgress(this IQueryable<PromotionApplication> query) =>
-        query.Where(a => !a.Status.IsFinal());
+        query.Where(a => a.Status != ApplicationStatus.ThRejected
+            && a.Status != ApplicationStatus.Approved
+            && a.Status != ApplicationStatus.Rejected);
 
     /// <summary>Filtra aplicaciones en estado final.</summary>
     public static IQueryable<PromotionApplication> Final(this IQueryable<PromotionApplication> query) =>
-        query.Where(a => a.Status.IsFinal());
+        query.Where(a => a.Status == ApplicationStatus.ThRejected
+            || a.Status == ApplicationStatus.Approved
+            || a.Status == ApplicationStatus.Rejected);
 
     /// <summary>Filtra aplicaciones aprobadas.</summary>
     public static IQueryable<PromotionApplication> Approved(this IQueryable<PromotionApplication> query) =>

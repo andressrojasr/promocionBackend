@@ -24,11 +24,14 @@ public class NotificationService(IAppDbContext db)
             query = query.Where(n => !n.IsRead);
         }
 
-        var items = await query
+        var notifications = await query
             .OrderByDescending(n => n.CreatedAt)
             .Take(50)
-            .Select(n => new NotificationDto(n.Id, n.Title, n.Message, n.IsRead, n.CreatedAt))
             .ToListAsync(cancellationToken);
+
+        var items = notifications
+            .Select(n => new NotificationDto(n.Id, n.Title, n.Message, n.IsRead, TimeHelper.FormatToEcuadorString(n.CreatedAt)))
+            .ToList();
 
         return new NotificationListDto(items, unreadCount);
     }

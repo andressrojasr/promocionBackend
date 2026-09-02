@@ -152,7 +152,7 @@ public class DashboardService(IAppDbContext db)
                 a.Teacher.Identification,
                 a.FromPosition,
                 a.ToPosition,
-                ApplicationStateMachine.GetEffectiveStatus(a.Status, a.CpDecisionAt, utcNow).ToStringValue(),
+                ApplicationStateMachine.GetEffectiveStatus(a.Status, a.CpDecisionAt, null, utcNow).ToStringValue(),
                 a.SubmittedAt,
                 a.DecidedAt,
                 a.DecidedAt.HasValue ? (int?)(a.DecidedAt.Value - a.SubmittedAt).Days : null,

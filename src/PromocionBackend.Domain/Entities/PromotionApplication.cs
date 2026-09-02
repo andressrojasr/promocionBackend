@@ -68,11 +68,11 @@ public class PromotionApplication
 
     /// <summary>¿Se puede apelar?</summary>
     public bool CanBeAppealed(DateTime utcNow) =>
-        ApplicationStateMachine.CanAppeal(Status, CpDecisionAt, utcNow);
+        ApplicationStateMachine.CanAppeal(Status, CpDecisionAt, null, utcNow);
 
     /// <summary>¿Cuál es el estado efectivo considerando expiración?</summary>
     public ApplicationStatus GetEffectiveStatus(DateTime utcNow) =>
-        ApplicationStateMachine.GetEffectiveStatus(Status, CpDecisionAt, utcNow);
+        ApplicationStateMachine.GetEffectiveStatus(Status, CpDecisionAt, null, utcNow);
 
     /// <summary>¿Es revisable por este rol?</summary>
     public bool IsReviewableBy(string role)
