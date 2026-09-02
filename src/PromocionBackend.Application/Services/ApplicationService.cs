@@ -67,7 +67,7 @@ public class ApplicationService(
             TeacherUserId = currentUser.UserId,
             FromPosition = eligibility.FromPosition,
             ToPosition = eligibility.ToPosition,
-            Status = ApplicationStatuses.Submitted,
+            Status = ApplicationStatus.Submitted,
             SubmittedAt = utcNow,
             TeacherId = details.TeacherId,
             TeacherName = details.FullName,
@@ -90,7 +90,7 @@ public class ApplicationService(
     }
 
     public async Task<IReadOnlyList<ApplicationSummaryDto>> ListAsync(
-        ICurrentUserService currentUser, string? status, Guid? processId, CancellationToken cancellationToken = default)
+        ICurrentUserService currentUser, string? status, Guid? processId, string? teacherId, CancellationToken cancellationToken = default)
     {
         var utcNow = DateTime.UtcNow;
 
@@ -103,7 +103,7 @@ public class ApplicationService(
         {
             Roles.Teacher => query.Where(a => a.TeacherUserId == currentUser.UserId),
             // CA solo ve postulaciones que llegaron a apelación.
-            Roles.Ca => query.Where(a => a.Status == ApplicationStatuses.Appealed || a.Appeal != null),
+            Roles.Ca => query.Where(a => a.Status == ApplicationStatus.Appealed || a.Appeal != null),
             Roles.Th or Roles.Cp or Roles.Admin => query,
             _ => throw AppException.Forbidden("Su rol no tiene acceso a las postulaciones.")
         };
@@ -111,6 +111,24 @@ public class ApplicationService(
         if (processId is { } pid)
         {
             query = query.Where(a => a.ProcessId == pid);
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (ApplicationStatusExtensions.TryFromStringValue(status, out var parsedStatus))
+            {
+                query = query.Where(a => a.Status == parsedStatus);
+            }
+            else
+            {
+                // Status inválido, retorna vacío
+                return [];
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(teacherId))
+        {
+            query = query.Where(a => a.Teacher.Identification.Contains(teacherId));
         }
 
         var applications = await query
@@ -121,11 +139,8 @@ public class ApplicationService(
 
         var summaries = applications.Select(a => ToSummary(a, utcNow));
 
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            summaries = summaries.Where(s => s.Status == status);
-        }
-
+        // El filtro de status ya se aplicó en la query, así que no es necesario filtrar aquí
+        // pero si la expiración cambió los estados, verificamos de nuevo
         return [.. summaries];
     }
 
@@ -140,6 +155,7 @@ public class ApplicationService(
             .Include(a => a.Process)
             .Include(a => a.Process.Requirements)
             .Include(a => a.Teacher)
+            .Include(a => a.ReviewLocker)
             .Include(a => a.Items)
             .Include(a => a.Reviews).ThenInclude(r => r.Reviewer)
             .Include(a => a.Appeal)
@@ -147,6 +163,39 @@ public class ApplicationService(
             ?? throw AppException.NotFound("Postulación no encontrada.");
 
         EnsureCanView(application, currentUser);
+
+        // Limpiar locks expirados
+        await CleanExpiredLocksAsync(cancellationToken);
+
+        // Validar que no esté bloqueada por otro usuario
+        if (application.IsReviewLockedByOther(currentUser.UserId, utcNow))
+        {
+            throw AppException.Conflict(
+                $"Esta postulación está siendo revisada por {application.ReviewLocker?.FullName}. " +
+                $"Volverá a estar disponible a las {application.ReviewLockExpiresAt:yyyy-MM-dd HH:mm:ss UTC}.");
+        }
+
+        // Liberar si el lock expiró
+        if (application.ReviewLockedBy == currentUser.UserId &&
+            application.ReviewLockExpiresAt.HasValue &&
+            utcNow > application.ReviewLockExpiresAt)
+        {
+            application.ReviewLockedBy = null;
+            application.ReviewLockedAt = null;
+            application.ReviewLockExpiresAt = null;
+        }
+
+        // Crear/renovar lock para usuario actual (si puede revisar)
+        var reviewableStatus = ApplicationStateMachine.ReviewableStatusFor(currentUser.Role);
+        var canReview = reviewableStatus == application.Status;
+        if (canReview)
+        {
+            const int LOCK_TIMEOUT_MINUTES = 30;
+            application.ReviewLockedBy = currentUser.UserId;
+            application.ReviewLockedAt = utcNow;
+            application.ReviewLockExpiresAt = utcNow.AddMinutes(LOCK_TIMEOUT_MINUTES);
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
         await ApplyAppealExpiryAsync([application], utcNow, cancellationToken);
 
@@ -186,15 +235,30 @@ public class ApplicationService(
                 null);
         }
 
+        var lockInfo = application.ReviewLockedBy.HasValue && application.ReviewLocker != null
+            ? new ReviewLockInfoDto(application.ReviewLocker.FullName, application.ReviewLockedAt, application.ReviewLockExpiresAt)
+            : null;
+
+        var ecuadorTz = TimeZoneInfo.FindSystemTimeZoneById("America/Guayaquil");
+
         return new ApplicationDetailDto(
             ToSummary(application, utcNow),
             [.. application.Items.Select(i => new ApplicationItemDto(i.ItemType, i.ExternalItemId, i.Title, i.DocumentUrl))],
             [.. application.Reviews
                 .OrderBy(r => r.CreatedAt)
-                .Select(r => new ReviewDto(r.Stage, r.Reviewer.FullName, r.ReviewerRole, r.Decision, r.Feedback, r.CreatedAt))],
-            application.Appeal is { } appeal ? new AppealDto(appeal.Justification, appeal.SubmittedAt) : null,
+                .Select(r => new ReviewDto(
+                    r.Stage,
+                    r.Reviewer.FullName,
+                    r.ReviewerRole,
+                    r.Decision,
+                    r.Feedback,
+                    FormatDateTimeToEcuadorString(r.CreatedAt, ecuadorTz)))],
+            application.Appeal is { } appeal
+                ? new AppealDto(appeal.Justification, FormatDateTimeToEcuadorString(appeal.SubmittedAt, ecuadorTz))
+                : null,
             eligibility,
-            canAppeal);
+            canAppeal,
+            lockInfo);
     }
 
 
@@ -232,7 +296,7 @@ public class ApplicationService(
             application.CpDecisionAt = utcNow;
         }
 
-        if (ApplicationStatuses.IsFinal(nextStatus))
+        if (nextStatus.IsFinal())
         {
             application.DecidedAt = utcNow;
         }
@@ -251,6 +315,12 @@ public class ApplicationService(
 
         NotifyTeacherOfDecision(application, stage, approved, request.Feedback, utcNow);
 
+        await db.SaveChangesAsync(cancellationToken);
+
+        // Liberar lock después de guardar la decisión
+        application.ReviewLockedBy = null;
+        application.ReviewLockedAt = null;
+        application.ReviewLockExpiresAt = null;
         await db.SaveChangesAsync(cancellationToken);
 
         return await GetDetailAsync(applicationId, currentUser, cancellationToken: cancellationToken);
@@ -287,7 +357,7 @@ public class ApplicationService(
             SubmittedAt = utcNow
         });
 
-        application.Status = ApplicationStatuses.Appealed;
+        application.Status = ApplicationStatus.Appealed;
 
         await notificationService.NotifyRoleAsync(
             Roles.Ca,
@@ -313,16 +383,16 @@ public class ApplicationService(
 
         foreach (var application in applications)
         {
-            if (application.Status != ApplicationStatuses.CpRejected)
+            if (application.Status != ApplicationStatus.CpRejected)
             {
                 continue;
             }
 
             var effective = ApplicationStateMachine.GetEffectiveStatus(application.Status, application.CpDecisionAt, utcNow);
 
-            if (effective == ApplicationStatuses.Rejected)
+            if (effective == ApplicationStatus.Rejected)
             {
-                application.Status = ApplicationStatuses.Rejected;
+                application.Status = ApplicationStatus.Rejected;
                 application.DecidedAt = application.CpDecisionAt?.AddDays(ApplicationStateMachine.AppealWindowDays) ?? utcNow;
 
                 notificationService.Notify(
@@ -388,21 +458,44 @@ public class ApplicationService(
         }
     }
 
-    private static ApplicationSummaryDto ToSummary(PromotionApplication application, DateTime utcNow) => new(
-        application.Id,
-        application.ProcessId,
-        application.Process.Name,
-        application.TeacherUserId,
-        application.Teacher.FullName,
-        application.Teacher.TeacherId,
-        application.FromPosition,
-        application.ToPosition,
-        PositionLadder.Label(application.FromPosition),
-        PositionLadder.Label(application.ToPosition),
-        ApplicationStateMachine.GetEffectiveStatus(application.Status, application.CpDecisionAt, utcNow),
-        application.SubmittedAt,
-        ApplicationStateMachine.GetAppealDeadline(application.Status, application.CpDecisionAt),
-        application.ScorePct);
+    private static string FormatDateTimeToEcuadorString(DateTime utcDateTime, TimeZoneInfo ecuadorTz)
+    {
+        var ecuadorTime = TimeZoneInfo.ConvertTime(
+            DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc),
+            ecuadorTz);
+        var offset = ecuadorTz.GetUtcOffset(ecuadorTime);
+        var dateTimeOffset = new DateTimeOffset(ecuadorTime, offset);
+        return dateTimeOffset.ToString("O");
+    }
+
+    private static ApplicationSummaryDto ToSummary(PromotionApplication application, DateTime utcNow)
+    {
+        var ecuadorTz = TimeZoneInfo.FindSystemTimeZoneById("America/Guayaquil");
+        var submittedAtStr = FormatDateTimeToEcuadorString(application.SubmittedAt, ecuadorTz);
+
+        var appealDeadline = ApplicationStateMachine.GetAppealDeadline(application.Status, application.CpDecisionAt);
+        var appealDeadlineStr = appealDeadline.HasValue
+            ? FormatDateTimeToEcuadorString(appealDeadline.Value, ecuadorTz)
+            : null;
+
+        return new(
+            application.Id,
+            application.ProcessId,
+            application.Process.Name,
+            application.TeacherUserId,
+            application.Teacher.FullName,
+            application.Teacher.Identification,
+            application.FromPosition,
+            application.ToPosition,
+            PositionLadder.Label(application.FromPosition),
+            PositionLadder.Label(application.ToPosition),
+            ApplicationStateMachine.GetEffectiveStatus(application.Status, application.CpDecisionAt, utcNow).ToStringValue(),
+            submittedAtStr,
+            appealDeadlineStr,
+            application.ScorePct,
+            application.DecidedAt.HasValue ? (int?)(application.DecidedAt.Value - application.SubmittedAt).Days : null,
+            application.Reviews.FirstOrDefault()?.Reviewer?.FullName);
+    }
 
     /// <summary>
     /// Valida que cada ítem seleccionado exista en la hoja de vida congelada y
@@ -512,5 +605,27 @@ public class ApplicationService(
             catalog[(ApplicationItemTypes.Experience, e.Id)] = ($"{e.Position} - {e.Institution}", e.SupportingDocumentUrl);
 
         return catalog;
+    }
+
+    private async Task CleanExpiredLocksAsync(CancellationToken cancellationToken)
+    {
+        var utcNow = DateTime.UtcNow;
+        var expiredLocks = await db.Applications
+            .Where(a => a.ReviewLockedBy != null &&
+                        a.ReviewLockExpiresAt.HasValue &&
+                        a.ReviewLockExpiresAt <= utcNow)
+            .ToListAsync(cancellationToken);
+
+        foreach (var app in expiredLocks)
+        {
+            app.ReviewLockedBy = null;
+            app.ReviewLockedAt = null;
+            app.ReviewLockExpiresAt = null;
+        }
+
+        if (expiredLocks.Any())
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
     }
 }

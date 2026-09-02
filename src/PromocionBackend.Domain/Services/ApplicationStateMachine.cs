@@ -16,18 +16,18 @@ public static class ApplicationStateMachine
     /// <summary>
     /// Devuelve el estado que puede revisar cada etapa.
     /// </summary>
-    public static string? ReviewableStatusFor(string stage) => stage switch
+    public static ApplicationStatus? ReviewableStatusFor(string stage) => stage switch
     {
-        ReviewStages.Th => ApplicationStatuses.Submitted,
-        ReviewStages.Cp => ApplicationStatuses.ThApproved,
-        ReviewStages.Ca => ApplicationStatuses.Appealed,
+        ReviewStages.Th => ApplicationStatus.Submitted,
+        ReviewStages.Cp => ApplicationStatus.ThApproved,
+        ReviewStages.Ca => ApplicationStatus.Appealed,
         _ => null
     };
 
     /// <summary>
     /// Etapa de revisión que corresponde a un rol de la aplicación, o null si el rol no revisa.
     /// </summary>
-    public static string? StageForRole(string role) => role switch
+    public static string? StageForRole(string? role) => role?.ToLowerInvariant() switch
     {
         Roles.Th => ReviewStages.Th,
         Roles.Cp => ReviewStages.Cp,
@@ -39,7 +39,7 @@ public static class ApplicationStateMachine
     /// Calcula el siguiente estado tras una decisión de revisión, o null si la
     /// transición no es válida para el estado actual.
     /// </summary>
-    public static string? GetNextStatus(string currentStatus, string stage, bool approved)
+    public static ApplicationStatus? GetNextStatus(ApplicationStatus currentStatus, string stage, bool approved)
     {
         if (ReviewableStatusFor(stage) != currentStatus)
         {
@@ -48,12 +48,12 @@ public static class ApplicationStateMachine
 
         return (stage, approved) switch
         {
-            (ReviewStages.Th, true) => ApplicationStatuses.ThApproved,
-            (ReviewStages.Th, false) => ApplicationStatuses.ThRejected,
-            (ReviewStages.Cp, true) => ApplicationStatuses.Approved,
-            (ReviewStages.Cp, false) => ApplicationStatuses.CpRejected,
-            (ReviewStages.Ca, true) => ApplicationStatuses.Approved,
-            (ReviewStages.Ca, false) => ApplicationStatuses.Rejected,
+            (ReviewStages.Th, true) => ApplicationStatus.ThApproved,
+            (ReviewStages.Th, false) => ApplicationStatus.ThRejected,
+            (ReviewStages.Cp, true) => ApplicationStatus.Approved,
+            (ReviewStages.Cp, false) => ApplicationStatus.CpRejected,
+            (ReviewStages.Ca, true) => ApplicationStatus.Approved,
+            (ReviewStages.Ca, false) => ApplicationStatus.Rejected,
             _ => null
         };
     }
@@ -62,23 +62,33 @@ public static class ApplicationStateMachine
     /// Estado efectivo considerando la expiración del plazo de apelación:
     /// un rechazo de CP sin apelación dentro del plazo se convierte en rechazo definitivo.
     /// </summary>
-    public static string GetEffectiveStatus(string status, DateTime? cpDecisionAt, DateTime utcNow)
+    public static ApplicationStatus GetEffectiveStatus(ApplicationStatus status, DateTime? cpDecisionAt, DateTime utcNow)
     {
-        if (status == ApplicationStatuses.CpRejected && IsAppealWindowExpired(cpDecisionAt, utcNow))
+        if (status == ApplicationStatus.CpRejected && IsAppealWindowExpired(cpDecisionAt, utcNow))
         {
-            return ApplicationStatuses.Rejected;
+            return ApplicationStatus.Rejected;
         }
 
         return status;
     }
 
-    public static DateTime? GetAppealDeadline(string status, DateTime? cpDecisionAt) =>
-        status == ApplicationStatuses.CpRejected && cpDecisionAt is { } decidedAt
+    public static DateTime? GetAppealDeadline(ApplicationStatus status, DateTime? cpDecisionAt) =>
+        status == ApplicationStatus.CpRejected && cpDecisionAt is { } decidedAt
             ? decidedAt.AddDays(AppealWindowDays)
             : null;
 
-    public static bool CanAppeal(string status, DateTime? cpDecisionAt, DateTime utcNow) =>
-        status == ApplicationStatuses.CpRejected && !IsAppealWindowExpired(cpDecisionAt, utcNow);
+    public static bool CanAppeal(ApplicationStatus status, DateTime? cpDecisionAt, DateTime utcNow) =>
+        status == ApplicationStatus.CpRejected && !IsAppealWindowExpired(cpDecisionAt, utcNow);
+
+    /// <summary>Valida si una transición es válida según las reglas del negocio.</summary>
+    public static bool IsValidTransition(ApplicationStatus from, ApplicationStatus to, string reviewerRole)
+    {
+        var stage = StageForRole(reviewerRole);
+        if (stage == null) return false;
+
+        var nextStatus = GetNextStatus(from, stage, to.IsFinal());
+        return nextStatus == to;
+    }
 
     private static bool IsAppealWindowExpired(DateTime? cpDecisionAt, DateTime utcNow) =>
         cpDecisionAt is not { } decidedAt || utcNow > decidedAt.AddDays(AppealWindowDays);

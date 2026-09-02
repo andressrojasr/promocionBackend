@@ -8,24 +8,25 @@ public class ApplicationStateMachineTests
     private static readonly DateTime Now = new(2026, 7, 16, 12, 0, 0, DateTimeKind.Utc);
 
     [Theory]
-    [InlineData(ApplicationStatuses.Submitted, ReviewStages.Th, true, ApplicationStatuses.ThApproved)]
-    [InlineData(ApplicationStatuses.Submitted, ReviewStages.Th, false, ApplicationStatuses.ThRejected)]
-    [InlineData(ApplicationStatuses.ThApproved, ReviewStages.Cp, true, ApplicationStatuses.Approved)]
-    [InlineData(ApplicationStatuses.ThApproved, ReviewStages.Cp, false, ApplicationStatuses.CpRejected)]
-    [InlineData(ApplicationStatuses.Appealed, ReviewStages.Ca, true, ApplicationStatuses.Approved)]
-    [InlineData(ApplicationStatuses.Appealed, ReviewStages.Ca, false, ApplicationStatuses.Rejected)]
-    public void GetNextStatus_ValidTransitions(string current, string stage, bool approved, string expected)
+    [InlineData(ApplicationStatus.Submitted, ReviewStages.Th, true, ApplicationStatus.ThApproved)]
+    [InlineData(ApplicationStatus.Submitted, ReviewStages.Th, false, ApplicationStatus.ThRejected)]
+    [InlineData(ApplicationStatus.ThApproved, ReviewStages.Cp, true, ApplicationStatus.Approved)]
+    [InlineData(ApplicationStatus.ThApproved, ReviewStages.Cp, false, ApplicationStatus.CpRejected)]
+    [InlineData(ApplicationStatus.Appealed, ReviewStages.Ca, true, ApplicationStatus.Approved)]
+    [InlineData(ApplicationStatus.Appealed, ReviewStages.Ca, false, ApplicationStatus.Rejected)]
+    public void GetNextStatus_ValidTransitions(ApplicationStatus current, string stage, bool approved, ApplicationStatus expected)
     {
-        Assert.Equal(expected, ApplicationStateMachine.GetNextStatus(current, stage, approved));
+        var result = ApplicationStateMachine.GetNextStatus(current, stage, approved);
+        Assert.Equal(expected, result);
     }
 
     [Theory]
-    [InlineData(ApplicationStatuses.Submitted, ReviewStages.Cp)]
-    [InlineData(ApplicationStatuses.Submitted, ReviewStages.Ca)]
-    [InlineData(ApplicationStatuses.ThApproved, ReviewStages.Th)]
-    [InlineData(ApplicationStatuses.Approved, ReviewStages.Cp)]
-    [InlineData(ApplicationStatuses.CpRejected, ReviewStages.Ca)]
-    public void GetNextStatus_InvalidTransitions_ReturnNull(string current, string stage)
+    [InlineData(ApplicationStatus.Submitted, ReviewStages.Cp)]
+    [InlineData(ApplicationStatus.Submitted, ReviewStages.Ca)]
+    [InlineData(ApplicationStatus.ThApproved, ReviewStages.Th)]
+    [InlineData(ApplicationStatus.Approved, ReviewStages.Cp)]
+    [InlineData(ApplicationStatus.CpRejected, ReviewStages.Ca)]
+    public void GetNextStatus_InvalidTransitions_ReturnNull(ApplicationStatus current, string stage)
     {
         Assert.Null(ApplicationStateMachine.GetNextStatus(current, stage, approved: true));
     }
@@ -35,9 +36,9 @@ public class ApplicationStateMachineTests
     {
         var cpDecisionAt = Now.AddDays(-2);
 
-        var effective = ApplicationStateMachine.GetEffectiveStatus(ApplicationStatuses.CpRejected, cpDecisionAt, Now);
+        var effective = ApplicationStateMachine.GetEffectiveStatus(ApplicationStatus.CpRejected, cpDecisionAt, Now);
 
-        Assert.Equal(ApplicationStatuses.CpRejected, effective);
+        Assert.Equal(ApplicationStatus.CpRejected, effective);
     }
 
     [Fact]
@@ -45,10 +46,10 @@ public class ApplicationStateMachineTests
     {
         var cpDecisionAt = Now.AddDays(-ApplicationStateMachine.AppealWindowDays);
 
-        var effective = ApplicationStateMachine.GetEffectiveStatus(ApplicationStatuses.CpRejected, cpDecisionAt, Now);
+        var effective = ApplicationStateMachine.GetEffectiveStatus(ApplicationStatus.CpRejected, cpDecisionAt, Now);
 
-        Assert.Equal(ApplicationStatuses.CpRejected, effective);
-        Assert.True(ApplicationStateMachine.CanAppeal(ApplicationStatuses.CpRejected, cpDecisionAt, Now));
+        Assert.Equal(ApplicationStatus.CpRejected, effective);
+        Assert.True(ApplicationStateMachine.CanAppeal(ApplicationStatus.CpRejected, cpDecisionAt, Now));
     }
 
     [Fact]
@@ -56,19 +57,19 @@ public class ApplicationStateMachineTests
     {
         var cpDecisionAt = Now.AddDays(-ApplicationStateMachine.AppealWindowDays).AddSeconds(-1);
 
-        var effective = ApplicationStateMachine.GetEffectiveStatus(ApplicationStatuses.CpRejected, cpDecisionAt, Now);
+        var effective = ApplicationStateMachine.GetEffectiveStatus(ApplicationStatus.CpRejected, cpDecisionAt, Now);
 
-        Assert.Equal(ApplicationStatuses.Rejected, effective);
-        Assert.False(ApplicationStateMachine.CanAppeal(ApplicationStatuses.CpRejected, cpDecisionAt, Now));
+        Assert.Equal(ApplicationStatus.Rejected, effective);
+        Assert.False(ApplicationStateMachine.CanAppeal(ApplicationStatus.CpRejected, cpDecisionAt, Now));
     }
 
     [Fact]
     public void GetEffectiveStatus_OtherStatuses_Unchanged()
     {
-        Assert.Equal(ApplicationStatuses.Submitted,
-            ApplicationStateMachine.GetEffectiveStatus(ApplicationStatuses.Submitted, null, Now));
-        Assert.Equal(ApplicationStatuses.Approved,
-            ApplicationStateMachine.GetEffectiveStatus(ApplicationStatuses.Approved, Now.AddDays(-10), Now));
+        Assert.Equal(ApplicationStatus.Submitted,
+            ApplicationStateMachine.GetEffectiveStatus(ApplicationStatus.Submitted, null, Now));
+        Assert.Equal(ApplicationStatus.Approved,
+            ApplicationStateMachine.GetEffectiveStatus(ApplicationStatus.Approved, Now.AddDays(-10), Now));
     }
 
     [Fact]
@@ -76,9 +77,9 @@ public class ApplicationStateMachineTests
     {
         var cpDecisionAt = Now;
 
-        Assert.Equal(Now.AddDays(3), ApplicationStateMachine.GetAppealDeadline(ApplicationStatuses.CpRejected, cpDecisionAt));
-        Assert.Null(ApplicationStateMachine.GetAppealDeadline(ApplicationStatuses.Submitted, cpDecisionAt));
-        Assert.Null(ApplicationStateMachine.GetAppealDeadline(ApplicationStatuses.CpRejected, null));
+        Assert.Equal(Now.AddDays(3), ApplicationStateMachine.GetAppealDeadline(ApplicationStatus.CpRejected, cpDecisionAt));
+        Assert.Null(ApplicationStateMachine.GetAppealDeadline(ApplicationStatus.Submitted, cpDecisionAt));
+        Assert.Null(ApplicationStateMachine.GetAppealDeadline(ApplicationStatus.CpRejected, null));
     }
 
     [Theory]

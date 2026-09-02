@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using PromocionBackend.Domain.Constants;
 using PromocionBackend.Domain.Entities;
 
 namespace PromocionBackend.Infrastructure.Persistence.Configurations;
@@ -17,11 +18,21 @@ public class PromotionApplicationConfiguration : IEntityTypeConfiguration<Promot
 
         builder.Property(a => a.FromPosition).HasMaxLength(30).IsRequired();
         builder.Property(a => a.ToPosition).HasMaxLength(30).IsRequired();
-        builder.Property(a => a.Status).HasMaxLength(20).IsRequired();
+        builder.Property(a => a.Status)
+            .HasConversion(
+                status => status.ToStringValue(),
+                statusString => ApplicationStatusExtensions.FromStringValue(statusString))
+            .HasMaxLength(20)
+            .IsRequired();
         builder.Property(a => a.TeacherId).HasMaxLength(255).IsRequired();
         builder.Property(a => a.TeacherName).HasMaxLength(500);
         builder.Property(a => a.CurrentPosition).HasMaxLength(255);
         builder.Property(a => a.ScorePct).HasPrecision(5, 2);
+        builder.Property(a => a.ReviewLockedBy).IsRequired(false);
+        builder.Property(a => a.ReviewLockedAt).IsRequired(false);
+        builder.Property(a => a.ReviewLockExpiresAt).IsRequired(false);
+
+        builder.HasIndex(a => new { a.ReviewLockedBy, a.ReviewLockExpiresAt });
 
         builder.HasOne(a => a.Process)
             .WithMany(p => p.Applications)
@@ -32,6 +43,11 @@ public class PromotionApplicationConfiguration : IEntityTypeConfiguration<Promot
             .WithMany()
             .HasForeignKey(a => a.TeacherUserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(a => a.ReviewLocker)
+            .WithMany()
+            .HasForeignKey(a => a.ReviewLockedBy)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(a => a.Items)
             .WithOne(i => i.Application)
