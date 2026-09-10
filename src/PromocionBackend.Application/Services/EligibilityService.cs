@@ -40,8 +40,13 @@ public class EligibilityService(IAppDbContext db, IHrApiClient hrApi)
         // Obtener datos frescos de RRHH
         var details = await hrApi.GetTeacherDetailsAsync(identification, externalAccessToken, cancellationToken);
 
-        var nextPosition = PositionLadder.GetNextPosition(details.CurrentPosition)
-            ?? throw AppException.Conflict(
+        Console.WriteLine($"DEBUG EligibilityService: Got teacher details. CurrentPosition = '{details.CurrentPosition}'");
+
+        var nextPosition = PositionLadder.GetNextPosition(details.CurrentPosition);
+        Console.WriteLine($"DEBUG EligibilityService: NextPosition = {nextPosition}");
+
+        if (nextPosition is null)
+            throw AppException.Conflict(
                 $"No existe una transición de promoción disponible desde {PositionLadder.Label(details.CurrentPosition)}. " +
                 "Por reglamento, no es posible postular desde Titular Agregado 3 hacia Titular Principal 1, y Titular Principal 3 es el grado máximo.");
 

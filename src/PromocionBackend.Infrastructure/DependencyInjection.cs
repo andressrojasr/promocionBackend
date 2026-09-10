@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PromocionBackend.Application.Abstractions;
 using PromocionBackend.Application.Common;
 using PromocionBackend.Infrastructure.Auth;
+using PromocionBackend.Infrastructure.Configuration;
 using PromocionBackend.Infrastructure.ExternalServices;
 using PromocionBackend.Infrastructure.Persistence;
 
@@ -20,13 +21,18 @@ public static class DependencyInjection
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<RoleSeedOptions>(configuration.GetSection(RoleSeedOptions.SectionName));
+        services.Configure<DataSourceSettings>(configuration.GetSection(DataSourceSettings.SectionName));
 
         services.AddSingleton<IAppJwtIssuer, AppJwtIssuer>();
         services.AddSingleton<IExternalTokenReader, ExternalTokenReader>();
 
         services.AddHttpClient<IHrApiClient, HrApiClient>(client =>
         {
-            var baseUrl = configuration["HrApi:BaseUrl"] ?? "http://localhost:5031";
+            var dataSourceSettings = configuration.GetSection(DataSourceSettings.SectionName).Get<DataSourceSettings>() ?? new DataSourceSettings();
+            var baseUrl = dataSourceSettings.UseRealServices
+                ? dataSourceSettings.RealServicesBaseUrl
+                : (configuration["HrApi:BaseUrl"] ?? "http://localhost:5031");
+
             client.BaseAddress = new Uri(baseUrl);
             client.Timeout = TimeSpan.FromSeconds(15);
         });
