@@ -79,6 +79,8 @@ public class DashboardService(IAppDbContext db)
         string? status = null,
         string? processId = null,
         string? teacherId = null,
+        string? facultyId = null,
+        DateOnly? decisionDate = null,
         CancellationToken cancellationToken = default)
     {
         var utcNow = DateTime.UtcNow;
@@ -116,6 +118,17 @@ public class DashboardService(IAppDbContext db)
         if (!string.IsNullOrWhiteSpace(teacherId))
         {
             query = query.Where(a => a.Teacher.Identification.Contains(teacherId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(facultyId))
+        {
+            query = query.Where(a => a.FacultyId == facultyId);
+        }
+
+        if (decisionDate is { } filterDate)
+        {
+            var dateValue = filterDate.ToDateTime(TimeOnly.MinValue);
+            query = query.Where(a => a.Reviews.Any(r => r.Stage == ReviewStages.Cp && r.CreatedAt.Date == dateValue));
         }
 
         var applications = await query.ToListAsync(cancellationToken);
@@ -157,7 +170,9 @@ public class DashboardService(IAppDbContext db)
                 a.DecidedAt,
                 a.DecidedAt.HasValue ? (int?)(a.DecidedAt.Value - a.SubmittedAt).Days : null,
                 a.ScorePct,
-                a.Reviews.FirstOrDefault()?.Reviewer?.FullName))
+                a.Reviews.FirstOrDefault()?.Reviewer?.FullName,
+                a.FacultyId,
+                a.FacultyName))
             .ToList();
 
         var availableProcesses = applications

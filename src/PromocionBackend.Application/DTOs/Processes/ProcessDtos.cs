@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using PromocionBackend.Application.DTOs.Commissions;
 
 namespace PromocionBackend.Application.DTOs.Processes;
 
@@ -76,6 +77,12 @@ public class CreateProcessRequest
 
     [Required]
     public List<RequirementConfigDto> Requirements { get; set; } = [];
+
+    /// <summary>Comisión principal de promoción (CP) que se crea junto con el proceso.</summary>
+    [Required(ErrorMessage = "Debe integrar la comisión principal de promoción del proceso.")]
+    [MinLength(6, ErrorMessage = "La comisión debe tener exactamente 6 integrantes.")]
+    [MaxLength(6, ErrorMessage = "La comisión debe tener exactamente 6 integrantes.")]
+    public List<CommissionMemberRequest> CommissionMembers { get; set; } = [];
 }
 
 public record TransitionDto(string FromPosition, string ToPosition, string FromLabel, string ToLabel);

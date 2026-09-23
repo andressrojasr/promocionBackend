@@ -30,6 +30,9 @@ public class ReviewRequest
 
     [MaxLength(2000)]
     public string? Feedback { get; set; }
+
+    /// <summary>Sesión de revisión (proceso+comisión+facultad) bajo la que se decide. Obligatoria para CP/CA; no aplica a TH.</summary>
+    public Guid? ReviewSessionId { get; set; }
 }
 
 public class AppealRequest
@@ -72,7 +75,11 @@ public record ApplicationSummaryDto(
     string? AppealDeadline,
     decimal? ScorePct,
     int? DaysToDecision,
-    string? CurrentReviewerName);
+    string? CurrentReviewerName,
+    string? FacultyId,
+    string? FacultyName,
+    /// <summary>Sesión de revisión (proceso+comisión+facultad) de la decisión CP/CA más reciente, si existe.</summary>
+    Guid? ReviewSessionId);
 
 public record ReviewLockInfoDto(
     string? LockedByName,

@@ -72,6 +72,25 @@ public class HrDependency
     public string Name { get; set; } = string.Empty;
 }
 
+/// <summary>Ficha liviana de un docente/autoridad, usada para búsqueda (p.ej. al integrar comisiones).</summary>
+public class HrTeacherSummary
+{
+    [JsonPropertyName("teacherId")]
+    public string TeacherId { get; set; } = string.Empty;
+
+    [JsonPropertyName("identificationType")]
+    public string IdentificationType { get; set; } = string.Empty;
+
+    [JsonPropertyName("identification")]
+    public string Identification { get; set; } = string.Empty;
+
+    [JsonPropertyName("fullName")]
+    public string FullName { get; set; } = string.Empty;
+
+    [JsonPropertyName("dependency")]
+    public HrDependency Dependency { get; set; } = new();
+}
+
 public class HrExperience
 {
     [JsonPropertyName("id")]

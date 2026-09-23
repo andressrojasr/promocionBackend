@@ -15,6 +15,14 @@ public class ApplicationReview
     public string? Feedback { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    /// <summary>Comisión (CP o CA) que tomó esta decisión; nulo para revisiones de Talento Humano.</summary>
+    public Guid? CommissionId { get; set; }
+
+    /// <summary>Sesión de revisión (proceso+comisión+facultad) bajo la cual se tomó la decisión; nula para TH.</summary>
+    public Guid? ReviewSessionId { get; set; }
+
     public PromotionApplication Application { get; set; } = null!;
     public User Reviewer { get; set; } = null!;
+    public Commission? Commission { get; set; }
+    public ReviewSession? ReviewSession { get; set; }
 }

@@ -14,4 +14,10 @@ public interface IHrApiClient
 
     /// <summary>Obtiene la hoja de vida completa del docente a partir de su identificación.</summary>
     Task<HrTeacherDetails> GetTeacherDetailsAsync(string identification, string externalAccessToken, CancellationToken cancellationToken = default);
+
+    /// <summary>Obtiene el catálogo de facultades (dependencias) de la Universidad.</summary>
+    Task<IReadOnlyList<HrDependency>> GetFacultiesAsync(string externalAccessToken, CancellationToken cancellationToken = default);
+
+    /// <summary>Busca docentes/autoridades por nombre o cédula (p.ej. para integrar comisiones).</summary>
+    Task<IReadOnlyList<HrTeacherSummary>> SearchTeachersAsync(string? query, string externalAccessToken, CancellationToken cancellationToken = default);
 }

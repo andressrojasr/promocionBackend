@@ -73,6 +73,8 @@ public class ApplicationService(
             TeacherName = details.FullName,
             CurrentPosition = details.CurrentPosition,
             ScorePct = details.Score?.Percentage,
+            FacultyId = string.IsNullOrWhiteSpace(details.Dependency?.Id) ? null : details.Dependency.Id,
+            FacultyName = string.IsNullOrWhiteSpace(details.Dependency?.Name) ? null : details.Dependency.Name,
             Items = items
         };
 
@@ -90,13 +92,15 @@ public class ApplicationService(
     }
 
     public async Task<IReadOnlyList<ApplicationSummaryDto>> ListAsync(
-        ICurrentUserService currentUser, string? status, Guid? processId, string? teacherId, CancellationToken cancellationToken = default)
+        ICurrentUserService currentUser, string? status, Guid? processId, string? teacherId,
+        string? facultyId = null, DateOnly? decisionDate = null, CancellationToken cancellationToken = default)
     {
         var utcNow = DateTime.UtcNow;
 
         var query = db.Applications
             .Include(a => a.Process)
             .Include(a => a.Teacher)
+            .Include(a => a.Reviews)
             .AsQueryable();
 
         query = currentUser.Role switch
@@ -129,6 +133,20 @@ public class ApplicationService(
         if (!string.IsNullOrWhiteSpace(teacherId))
         {
             query = query.Where(a => a.Teacher.Identification.Contains(teacherId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(facultyId))
+        {
+            query = query.Where(a => a.FacultyId == facultyId);
+        }
+
+        if (decisionDate is { } filterDate)
+        {
+            var stage = ApplicationStateMachine.StageForRole(currentUser.Role);
+            var dateValue = filterDate.ToDateTime(TimeOnly.MinValue);
+            query = stage is null
+                ? query.Where(a => false)
+                : query.Where(a => a.Reviews.Any(r => r.Stage == stage && r.CreatedAt.Date == dateValue));
         }
 
         var applications = await query
@@ -281,6 +299,35 @@ public class ApplicationService(
             ?? throw AppException.Conflict(
                 $"La postulación no se encuentra en un estado revisable por su rol (estado actual: {application.Status}).");
 
+        Guid? commissionId = null;
+        Guid? reviewSessionId = null;
+        if (stage is ReviewStages.Cp or ReviewStages.Ca)
+        {
+            reviewSessionId = request.ReviewSessionId
+                ?? throw AppException.BadRequest("Debe iniciar una sesión de revisión (proceso, comisión y facultad) antes de decidir.");
+
+            var session = await db.ReviewSessions
+                .FirstOrDefaultAsync(s => s.Id == reviewSessionId, cancellationToken)
+                ?? throw AppException.NotFound("La sesión de revisión no existe.");
+
+            if (session.ProcessId != application.ProcessId || session.Type != stage)
+            {
+                throw AppException.BadRequest("La sesión de revisión no corresponde a este proceso o etapa.");
+            }
+
+            if (session.ClosedAt is not null)
+            {
+                throw AppException.Conflict("Esta sesión de revisión está cerrada. Inicie o seleccione otra sesión activa.");
+            }
+
+            if (!string.Equals(session.FacultyId, application.FacultyId, StringComparison.Ordinal))
+            {
+                throw AppException.Conflict("Esta postulación pertenece a una facultad distinta a la de su sesión de revisión activa.");
+            }
+
+            commissionId = session.CommissionId;
+        }
+
         application.Status = nextStatus;
 
         if (stage == ReviewStages.Cp && !approved)
@@ -302,7 +349,9 @@ public class ApplicationService(
             ReviewerRole = currentUser.Role,
             Decision = request.Decision,
             Feedback = request.Feedback,
-            CreatedAt = utcNow
+            CreatedAt = utcNow,
+            CommissionId = commissionId,
+            ReviewSessionId = reviewSessionId
         });
 
         NotifyTeacherOfDecision(application, stage, approved, request.Feedback, utcNow);
@@ -470,6 +519,11 @@ public class ApplicationService(
             ? FormatDateTimeToEcuadorString(appealDeadline.Value, ecuadorTz)
             : null;
 
+        var decidingReviewSessionId = application.Reviews
+            .Where(r => r.ReviewSessionId.HasValue)
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefault()?.ReviewSessionId;
+
         return new(
             application.Id,
             application.ProcessId,
@@ -486,7 +540,10 @@ public class ApplicationService(
             appealDeadlineStr,
             application.ScorePct,
             application.DecidedAt.HasValue ? (int?)(application.DecidedAt.Value - application.SubmittedAt).Days : null,
-            application.Reviews.FirstOrDefault()?.Reviewer?.FullName);
+            application.Reviews.FirstOrDefault()?.Reviewer?.FullName,
+            application.FacultyId,
+            application.FacultyName,
+            decidingReviewSessionId);
     }
 
     /// <summary>

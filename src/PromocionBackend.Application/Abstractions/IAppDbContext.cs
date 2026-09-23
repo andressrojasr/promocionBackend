@@ -17,6 +17,9 @@ public interface IAppDbContext
     DbSet<ApplicationReview> ApplicationReviews { get; }
     DbSet<Appeal> Appeals { get; }
     DbSet<Notification> Notifications { get; }
+    DbSet<Commission> Commissions { get; }
+    DbSet<CommissionMember> CommissionMembers { get; }
+    DbSet<ReviewSession> ReviewSessions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

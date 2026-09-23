@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PromocionBackend.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using PromocionBackend.Infrastructure.Persistence;
 namespace PromocionBackend.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260918163547_AddFacultyAndCommissions")]
+    partial class AddFacultyAndCommissions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -110,9 +113,6 @@ namespace PromocionBackend.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
-                    b.Property<Guid?>("ReviewSessionId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("ReviewerRole")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -131,8 +131,6 @@ namespace PromocionBackend.Infrastructure.Migrations
                     b.HasIndex("ApplicationId");
 
                     b.HasIndex("CommissionId");
-
-                    b.HasIndex("ReviewSessionId");
 
                     b.HasIndex("ReviewerUserId");
 
@@ -443,64 +441,6 @@ namespace PromocionBackend.Infrastructure.Migrations
                     b.ToTable("PromotionProcesses", (string)null);
                 });
 
-            modelBuilder.Entity("PromocionBackend.Domain.Entities.ReviewSession", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("ClosedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("CommissionDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("CommissionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("CommissionIsPrincipal")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("FacultyId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("FacultyName")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<Guid>("ProcessId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ProcessName")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CommissionId");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("ProcessId", "Type", "FacultyId", "CreatedAt");
-
-                    b.ToTable("ReviewSessions", (string)null);
-                });
-
             modelBuilder.Entity("PromocionBackend.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -585,11 +525,6 @@ namespace PromocionBackend.Infrastructure.Migrations
                         .HasForeignKey("CommissionId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("PromocionBackend.Domain.Entities.ReviewSession", "ReviewSession")
-                        .WithMany("Reviews")
-                        .HasForeignKey("ReviewSessionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("PromocionBackend.Domain.Entities.User", "Reviewer")
                         .WithMany()
                         .HasForeignKey("ReviewerUserId")
@@ -599,8 +534,6 @@ namespace PromocionBackend.Infrastructure.Migrations
                     b.Navigation("Application");
 
                     b.Navigation("Commission");
-
-                    b.Navigation("ReviewSession");
 
                     b.Navigation("Reviewer");
                 });
@@ -694,33 +627,6 @@ namespace PromocionBackend.Infrastructure.Migrations
                     b.Navigation("CreatedBy");
                 });
 
-            modelBuilder.Entity("PromocionBackend.Domain.Entities.ReviewSession", b =>
-                {
-                    b.HasOne("PromocionBackend.Domain.Entities.Commission", "Commission")
-                        .WithMany()
-                        .HasForeignKey("CommissionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("PromocionBackend.Domain.Entities.User", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("PromocionBackend.Domain.Entities.PromotionProcess", "Process")
-                        .WithMany()
-                        .HasForeignKey("ProcessId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Commission");
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("Process");
-                });
-
             modelBuilder.Entity("PromocionBackend.Domain.Entities.Commission", b =>
                 {
                     b.Navigation("Members");
@@ -740,11 +646,6 @@ namespace PromocionBackend.Infrastructure.Migrations
                     b.Navigation("Applications");
 
                     b.Navigation("Requirements");
-                });
-
-            modelBuilder.Entity("PromocionBackend.Domain.Entities.ReviewSession", b =>
-                {
-                    b.Navigation("Reviews");
                 });
 #pragma warning restore 612, 618
         }

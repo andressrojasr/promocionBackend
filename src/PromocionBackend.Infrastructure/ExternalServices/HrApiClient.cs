@@ -66,6 +66,36 @@ public class HrApiClient(HttpClient httpClient, IOptions<DataSourceSettings> dat
         return details;
     }
 
+    public async Task<IReadOnlyList<HrDependency>> GetFacultiesAsync(string externalAccessToken, CancellationToken cancellationToken = default)
+    {
+        var path = _dataSourceSettings.UseRealServices
+            ? "WsUtaSystem/api/v1/rh/faculties"
+            : "api/v1/rh/faculties";
+
+        return await GetAsync<List<HrDependency>>(
+            path,
+            externalAccessToken,
+            notFoundMessage: "No se encontró el catálogo de facultades.",
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<HrTeacherSummary>> SearchTeachersAsync(string? query, string externalAccessToken, CancellationToken cancellationToken = default)
+    {
+        var basePath = _dataSourceSettings.UseRealServices
+            ? "WsUtaSystem/api/v1/rh/academic-promotion/teachers"
+            : "api/v1/rh/academic-promotion/teachers";
+
+        var path = string.IsNullOrWhiteSpace(query)
+            ? basePath
+            : $"{basePath}?query={Uri.EscapeDataString(query)}";
+
+        return await GetAsync<List<HrTeacherSummary>>(
+            path,
+            externalAccessToken,
+            notFoundMessage: "No se encontraron docentes.",
+            cancellationToken);
+    }
+
     private async Task<T> GetAsync<T>(string path, string externalAccessToken, string notFoundMessage, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, path);

@@ -6,7 +6,9 @@ using PromocionBackend.Application.Common;
 using PromocionBackend.Infrastructure.Auth;
 using PromocionBackend.Infrastructure.Configuration;
 using PromocionBackend.Infrastructure.ExternalServices;
+using PromocionBackend.Infrastructure.Pdf;
 using PromocionBackend.Infrastructure.Persistence;
+using QuestPDF.Infrastructure;
 
 namespace PromocionBackend.Infrastructure;
 
@@ -14,8 +16,12 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        QuestPDF.Settings.License = LicenseType.Community;
+
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("Default")));
+
+        services.AddSingleton<IActaPdfBuilder, ActaPdfBuilder>();
 
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 

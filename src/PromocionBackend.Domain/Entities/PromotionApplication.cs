@@ -24,6 +24,10 @@ public class PromotionApplication
     public string CurrentPosition { get; set; } = string.Empty;
     public decimal? ScorePct { get; set; }
 
+    /// <summary>Facultad (dependencia) del docente al momento de postular; permite filtrar por facultad.</summary>
+    public string? FacultyId { get; set; }
+    public string? FacultyName { get; set; }
+
     /// <summary>Momento del rechazo de la Comisión de Promoción; inicia el plazo de apelación.</summary>
     public DateTime? CpDecisionAt { get; set; }
 

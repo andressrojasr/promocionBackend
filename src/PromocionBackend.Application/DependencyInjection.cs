@@ -15,6 +15,11 @@ public static class DependencyInjection
         services.AddScoped<NotificationService>();
         services.AddScoped<TeacherProfileService>();
         services.AddScoped<DashboardService>();
+        services.AddScoped<FacultyService>();
+        services.AddScoped<TeacherDirectoryService>();
+        services.AddScoped<CommissionService>();
+        services.AddScoped<ActaService>();
+        services.AddScoped<ReviewSessionService>();
 
         return services;
     }

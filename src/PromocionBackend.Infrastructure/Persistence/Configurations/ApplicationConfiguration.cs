@@ -100,6 +100,16 @@ public class ApplicationReviewConfiguration : IEntityTypeConfiguration<Applicati
             .WithMany()
             .HasForeignKey(r => r.ReviewerUserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(r => r.Commission)
+            .WithMany()
+            .HasForeignKey(r => r.CommissionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(r => r.ReviewSession)
+            .WithMany(s => s.Reviews)
+            .HasForeignKey(r => r.ReviewSessionId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 

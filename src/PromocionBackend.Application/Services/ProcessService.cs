@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PromocionBackend.Application.Abstractions;
 using PromocionBackend.Application.Common;
+using PromocionBackend.Application.DTOs.Commissions;
 using PromocionBackend.Application.DTOs.Processes;
 using PromocionBackend.Domain.Constants;
 using PromocionBackend.Domain.Entities;
@@ -12,7 +13,7 @@ namespace PromocionBackend.Application.Services;
 /// Gestión de procesos de promoción: creación con la configuración de requisitos
 /// por transición, listado con estado derivado de la ventana de postulación y detalle.
 /// </summary>
-public class ProcessService(IAppDbContext db)
+public class ProcessService(IAppDbContext db, CommissionService commissionService)
 {
     private static readonly HashSet<string> ValidLanguageLevels =
         new(StringComparer.OrdinalIgnoreCase) { "A1", "A2", "B1", "B2", "C1", "C2" };
@@ -56,6 +57,18 @@ public class ProcessService(IAppDbContext db)
 
         db.Processes.Add(process);
         await db.SaveChangesAsync(cancellationToken);
+
+        await commissionService.CreateInternalAsync(
+            new CreateCommissionRequest
+            {
+                ProcessId = process.Id,
+                Type = CommissionTypes.Cp,
+                IsPrincipal = true,
+                Date = DateTime.UtcNow.Date,
+                Members = request.CommissionMembers
+            },
+            createdByUserId,
+            cancellationToken);
 
         return await GetDetailAsync(process.Id, currentUser: null, cancellationToken);
     }

@@ -14,9 +14,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ApplicationReview> ApplicationReviews => Set<ApplicationReview>();
     public DbSet<Appeal> Appeals => Set<Appeal>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<Commission> Commissions => Set<Commission>();
+    public DbSet<CommissionMember> CommissionMembers => Set<CommissionMember>();
+    public DbSet<ReviewSession> ReviewSessions => Set<ReviewSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+    }
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+        configurationBuilder.Properties<DateTime?>().HaveConversion<UtcNullableDateTimeConverter>();
     }
 }

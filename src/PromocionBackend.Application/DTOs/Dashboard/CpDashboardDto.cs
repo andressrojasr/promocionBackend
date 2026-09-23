@@ -20,7 +20,9 @@ public record CpApplicationReportDto(
     DateTime? DecidedAt,
     int? DaysToDecision,
     decimal? ScorePct,
-    string? CurrentReviewerName);
+    string? CurrentReviewerName,
+    string? FacultyId,
+    string? FacultyName);
 
 public record CpDashboardDataDto(
     CpDashboardStatsDto Stats,

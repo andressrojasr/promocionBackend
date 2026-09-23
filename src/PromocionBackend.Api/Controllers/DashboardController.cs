@@ -28,6 +28,8 @@ public class DashboardController(
         [FromQuery] string? status = null,
         [FromQuery] string? processId = null,
         [FromQuery] string? teacherId = null,
+        [FromQuery] string? facultyId = null,
+        [FromQuery] DateOnly? decisionDate = null,
         CancellationToken cancellationToken = default)
     {
         // Validar estado si se proporciona
@@ -37,7 +39,7 @@ public class DashboardController(
                 ApplicationStatusValidator.GetValidationErrorMessage(status)));
         }
 
-        var data = await dashboardService.GetCpDashboardAsync(status, processId, teacherId, cancellationToken);
+        var data = await dashboardService.GetCpDashboardAsync(status, processId, teacherId, facultyId, decisionDate, cancellationToken);
         return Ok(ApiResponse<CpDashboardDataDto>.Ok(data));
     }
 }

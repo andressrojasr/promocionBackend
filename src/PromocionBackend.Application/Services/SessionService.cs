@@ -29,7 +29,24 @@ public class SessionService(
 
         // La llamada a RRHH con el token externo delega su validación al sistema de la UTA:
         // un token inválido o expirado produce 401 y el intercambio se rechaza.
+        // Si el email no existe en RRHH, usa StaticCedula como fallback.
         var identification = await hrApi.GetIdentificationByEmailAsync(email, externalAccessToken, cancellationToken);
+
+        // Obtener datos completos del docente, incluyendo nombre real
+        // Si falla (ej: token sin autorización), usa nombre derivado del email
+        string fullName = DisplayNameFromEmail(email);
+        try
+        {
+            var teacherDetails = await hrApi.GetTeacherDetailsAsync(identification, externalAccessToken, cancellationToken);
+            if (teacherDetails?.FullName != null)
+            {
+                fullName = teacherDetails.FullName;
+            }
+        }
+        catch
+        {
+            // Si no puede obtener datos del docente, continúa con nombre derivado del email
+        }
 
         var utcNow = DateTime.UtcNow;
         var user = await db.Users
@@ -42,11 +59,16 @@ public class SessionService(
                 Id = Guid.NewGuid(),
                 Email = email,
                 Role = ResolveInitialRole(email),
-                FullName = DisplayNameFromEmail(email),
+                FullName = fullName,
                 IsActive = true,
                 CreatedAt = utcNow
             };
             db.Users.Add(user);
+        }
+        else
+        {
+            // Actualizar nombre si el usuario ya existe
+            user.FullName = fullName;
         }
 
         if (!user.IsActive)

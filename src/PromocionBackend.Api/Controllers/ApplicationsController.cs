@@ -39,7 +39,8 @@ public class ApplicationsController(
     /// <summary>Listado de postulaciones según el rol: el docente ve las suyas; TH/CP/Admin todas; CA las apeladas.</summary>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<ApplicationSummaryDto>>>> List(
-        [FromQuery] string? status, [FromQuery] Guid? processId, [FromQuery] string? teacherId, CancellationToken cancellationToken)
+        [FromQuery] string? status, [FromQuery] Guid? processId, [FromQuery] string? teacherId,
+        [FromQuery] string? facultyId, [FromQuery] DateOnly? decisionDate, CancellationToken cancellationToken)
     {
         // Validar estado si se proporciona
         if (!string.IsNullOrWhiteSpace(status) && !ApplicationStatusValidator.IsValidStatus(status))
@@ -48,7 +49,7 @@ public class ApplicationsController(
                 ApplicationStatusValidator.GetValidationErrorMessage(status)));
         }
 
-        var applications = await applicationService.ListAsync(currentUser, status, processId, teacherId, cancellationToken);
+        var applications = await applicationService.ListAsync(currentUser, status, processId, teacherId, facultyId, decisionDate, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<ApplicationSummaryDto>>.Ok(applications));
     }
 
