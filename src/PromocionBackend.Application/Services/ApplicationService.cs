@@ -27,6 +27,11 @@ public class ApplicationService(
     {
         var utcNow = DateTime.UtcNow;
 
+        if (!request.AcceptedTerms)
+        {
+            throw AppException.BadRequest("Debe aceptar las consideraciones para enviar su solicitud.");
+        }
+
         var process = await db.Processes
             .FirstOrDefaultAsync(p => p.Id == request.ProcessId, cancellationToken)
             ?? throw AppException.NotFound("Proceso de promoción no encontrado.");
@@ -75,6 +80,8 @@ public class ApplicationService(
             ScorePct = details.Score?.Percentage,
             FacultyId = string.IsNullOrWhiteSpace(details.Dependency?.Id) ? null : details.Dependency.Id,
             FacultyName = string.IsNullOrWhiteSpace(details.Dependency?.Name) ? null : details.Dependency.Name,
+            TermsAcceptedAt = utcNow,
+            TermsVersion = ApplicationTerms.CurrentVersion,
             Items = items
         };
 
@@ -220,16 +227,50 @@ public class ApplicationService(
         EligibilityDto? eligibility = null;
         if (requirement is not null)
         {
+            // Mismos requisitos y orden que el motor de elegibilidad: los condicionales solo
+            // aparecen cuando el proceso los exige para esta transición.
             var requirements = new List<RequirementEvaluationDto>
             {
                 new("YEARS_IN_RANK", $"Experiencia mínima como {PositionLadder.Label(application.FromPosition)}", $"{requirement.MinYearsInPosition} años", "", false, "", requirement.MinYearsInPosition),
                 new("PUBLICATIONS", "Obras de relevancia o artículos indexados publicados", $"{requirement.MinPublications} publicaciones", "", false, "", requirement.MinPublications),
-                new("TRAINING_HOURS", $"Horas de capacitación en los últimos {requirement.TrainingWindowYears} años", $"{requirement.MinTrainingHours} horas", "", false, "", requirement.MinTrainingHours),
             };
+
+            if (requirement.MinPublicationsInOtherLanguage > 0)
+            {
+                requirements.Add(new("PUBLICATIONS_OTHER_LANGUAGE", "Publicaciones en un idioma diferente a la lengua materna", $"{requirement.MinPublicationsInOtherLanguage} publicaciones", "", false, "", requirement.MinPublicationsInOtherLanguage));
+            }
+
+            requirements.Add(new("EVALUATION_SCORE", "Puntaje mínimo de la evaluación integral de desempeño", $"{requirement.MinEvaluationScorePct}%", "", false, "", null));
+            requirements.Add(new("TRAINING_HOURS", $"Horas de capacitación en los últimos {requirement.TrainingWindowYears} años", $"{requirement.MinTrainingHours} horas", "", false, "", requirement.MinTrainingHours));
 
             if (requirement.MinPedagogicalTrainingPct.HasValue)
             {
                 requirements.Add(new("PEDAGOGICAL_HOURS", $"Actualización pedagógica ({requirement.MinPedagogicalTrainingPct}%)", $"{(int)(requirement.MinTrainingHours * requirement.MinPedagogicalTrainingPct.Value / 100)} horas", "", false, "", null));
+            }
+
+            if (requirement.MinGivenTrainingHours is { } minGivenHours)
+            {
+                requirements.Add(new("GIVEN_TRAINING_HOURS", "Horas de capacitación y actualización impartida", $"{minGivenHours} horas", "", false, "", minGivenHours));
+            }
+
+            if (requirement.MinProjectMonths is { } minProjectMonths)
+            {
+                requirements.Add(new("PROJECT_MONTHS", "Tiempo en proyectos de investigación y/o vinculación durante el grado actual", $"{minProjectMonths} meses", "", false, "", minProjectMonths));
+            }
+
+            if (requirement.MinInternationalProjects is { } minInternational)
+            {
+                requirements.Add(new("INTERNATIONAL_PROJECTS", "Proyectos con investigadores, instituciones o redes de investigación extranjeros", $"{minInternational} proyectos", "", false, "", minInternational));
+            }
+
+            if (requirement.MinDoctoralTheses is { } minTheses)
+            {
+                requirements.Add(new("DOCTORAL_THESES", "Tesis de doctorado dirigidas o codirigidas", $"{minTheses} tesis", "", false, "", minTheses));
+            }
+
+            if (requirement.MinDoctoralThesesInRank is { } minThesesInRank)
+            {
+                requirements.Add(new("THESES_IN_RANK", "Tesis de doctorado dirigidas durante el grado actual", $"{minThesesInRank} tesis", "", false, "", minThesesInRank));
             }
 
             requirements.Add(new("LANGUAGE_LEVEL", "Idioma distinto al castellano certificado", requirement.RequiredLanguageLevel ?? "B1", "", false, "", null));

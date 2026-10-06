@@ -72,6 +72,34 @@ public class HrDependency
     public string Name { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Departamento tal como lo devuelve el servicio real de la UTA
+/// (GET WsUtaSystem/api/v1/rh/vw-departments/by-type/{tipo}); el tipo 128 son las facultades.
+/// </summary>
+public class HrDepartment
+{
+    [JsonPropertyName("departmentID")]
+    public int DepartmentID { get; set; }
+
+    [JsonPropertyName("code")]
+    public string? Code { get; set; }
+
+    [JsonPropertyName("departmentName")]
+    public string DepartmentName { get; set; } = string.Empty;
+
+    [JsonPropertyName("shortName")]
+    public string? ShortName { get; set; }
+
+    [JsonPropertyName("departmentTypeID")]
+    public int DepartmentTypeID { get; set; }
+
+    [JsonPropertyName("departmentTypeName")]
+    public string? DepartmentTypeName { get; set; }
+
+    [JsonPropertyName("isActive")]
+    public bool IsActive { get; set; } = true;
+}
+
 /// <summary>Ficha liviana de un docente/autoridad, usada para búsqueda (p.ej. al integrar comisiones).</summary>
 public class HrTeacherSummary
 {

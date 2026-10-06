@@ -20,6 +20,9 @@ public class SubmitApplicationRequest
     public Guid ProcessId { get; set; }
 
     public List<ApplicationItemRequest> Items { get; set; } = [];
+
+    /// <summary>El docente confirmó haber leído y aceptado las consideraciones previas al envío.</summary>
+    public bool AcceptedTerms { get; set; }
 }
 
 public class ReviewRequest

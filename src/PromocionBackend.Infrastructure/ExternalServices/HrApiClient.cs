@@ -66,17 +66,26 @@ public class HrApiClient(HttpClient httpClient, IOptions<DataSourceSettings> dat
         return details;
     }
 
+    /// <summary>Tipo de departamento "FACULTAD" en el servicio de RRHH de la UTA.</summary>
+    private const int FacultyDepartmentTypeId = 128;
+
     public async Task<IReadOnlyList<HrDependency>> GetFacultiesAsync(string externalAccessToken, CancellationToken cancellationToken = default)
     {
+        // El servicio real y el simulado exponen el mismo contrato (arreglo de departamentos);
+        // solo cambia el prefijo "WsUtaSystem" del servicio real.
         var path = _dataSourceSettings.UseRealServices
-            ? "WsUtaSystem/api/v1/rh/faculties"
-            : "api/v1/rh/faculties";
+            ? $"WsUtaSystem/api/v1/rh/vw-departments/by-type/{FacultyDepartmentTypeId}"
+            : $"api/v1/rh/vw-departments/by-type/{FacultyDepartmentTypeId}";
 
-        return await GetAsync<List<HrDependency>>(
+        var departments = await GetAsync<List<HrDepartment>>(
             path,
             externalAccessToken,
             notFoundMessage: "No se encontró el catálogo de facultades.",
             cancellationToken);
+
+        return [.. departments
+            .Where(d => d.IsActive && d.DepartmentTypeID == FacultyDepartmentTypeId)
+            .Select(d => new HrDependency { Id = d.DepartmentID.ToString(), Name = d.DepartmentName })];
     }
 
     public async Task<IReadOnlyList<HrTeacherSummary>> SearchTeachersAsync(string? query, string externalAccessToken, CancellationToken cancellationToken = default)

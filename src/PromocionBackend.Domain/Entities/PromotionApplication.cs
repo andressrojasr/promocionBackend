@@ -28,6 +28,12 @@ public class PromotionApplication
     public string? FacultyId { get; set; }
     public string? FacultyName { get; set; }
 
+    /// <summary>Momento en que el docente aceptó las consideraciones previas al envío (UTC).</summary>
+    public DateTime? TermsAcceptedAt { get; set; }
+
+    /// <summary>Versión del texto de consideraciones que aceptó.</summary>
+    public string? TermsVersion { get; set; }
+
     /// <summary>Momento del rechazo de la Comisión de Promoción; inicia el plazo de apelación.</summary>
     public DateTime? CpDecisionAt { get; set; }
 

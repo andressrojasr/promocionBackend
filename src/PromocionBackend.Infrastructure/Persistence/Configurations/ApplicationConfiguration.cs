@@ -28,6 +28,7 @@ public class PromotionApplicationConfiguration : IEntityTypeConfiguration<Promot
         builder.Property(a => a.TeacherName).HasMaxLength(500);
         builder.Property(a => a.CurrentPosition).HasMaxLength(255);
         builder.Property(a => a.ScorePct).HasPrecision(5, 2);
+        builder.Property(a => a.TermsVersion).HasMaxLength(30);
         builder.Property(a => a.ReviewLockedBy).IsRequired(false);
         builder.Property(a => a.ReviewLockedAt).IsRequired(false);
         builder.Property(a => a.ReviewLockExpiresAt).IsRequired(false);
